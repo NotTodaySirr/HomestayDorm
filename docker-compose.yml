@@ -1,0 +1,22 @@
+services:
+  db:
+    container_name: HomestayDorm_Postgresql
+    image: postgres:18-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: homestay_user
+      POSTGRES_PASSWORD: homestay_password
+      POSTGRES_DB: homestaydorm
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U homestay_user -d homestaydorm"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
