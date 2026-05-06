@@ -15,6 +15,15 @@ export type FormState = {
   message?: string | null;
 };
 
+function isUniqueEmailError(error: unknown) {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === 'P2002'
+  );
+}
+
 export async function signup(state: FormState | undefined, formData: FormData): Promise<FormState | undefined> {
   // 1. Validate form fields
   const validatedFields = SignupFormSchema.safeParse({
@@ -27,7 +36,7 @@ export async function signup(state: FormState | undefined, formData: FormData): 
   if (!validatedFields.success) {
     return {
       errors: validatedFields.error.flatten().fieldErrors,
-      message: 'Please resolve errors to continue.',
+      message: 'Vui lòng kiểm tra các lỗi trước khi tiếp tục.',
     };
   }
 
@@ -53,15 +62,15 @@ export async function signup(state: FormState | undefined, formData: FormData): 
     // 4. Create session
     await createSession(user.id, user.role);
     
-  } catch (error: any) {
+  } catch (error) {
     // Handle unique constraint violation for email
-    if (error.code === 'P2002') {
+    if (isUniqueEmailError(error)) {
       return {
-        message: 'Account with this email already exists.',
+        message: 'Email này đã được đăng ký.',
       };
     }
     return {
-      message: 'Failed to create user. Please try again.',
+      message: 'Không thể tạo tài khoản. Vui lòng thử lại.',
     };
   }
   
@@ -78,7 +87,7 @@ export async function login(state: FormState | undefined, formData: FormData): P
   if (!validatedFields.success) {
     return {
       errors: validatedFields.error.flatten().fieldErrors,
-      message: 'Missing or invalid fields.',
+      message: 'Vui lòng kiểm tra thông tin đăng nhập.',
     };
   }
 
@@ -91,7 +100,7 @@ export async function login(state: FormState | undefined, formData: FormData): P
 
   if (!user) {
     return {
-      message: 'Invalid credentials.',
+      message: 'Email hoặc mật khẩu không đúng.',
     };
   }
 
@@ -100,7 +109,7 @@ export async function login(state: FormState | undefined, formData: FormData): P
 
   if (!passwordsMatch) {
     return {
-      message: 'Invalid credentials.',
+      message: 'Email hoặc mật khẩu không đúng.',
     };
   }
 

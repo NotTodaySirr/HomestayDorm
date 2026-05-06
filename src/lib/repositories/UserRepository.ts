@@ -5,7 +5,8 @@ import { User, Prisma } from '../../generated/prisma/client';
 export class UserRepository extends BaseRepository<
   User,
   Prisma.UserCreateInput,
-  Prisma.UserUpdateInput
+  Prisma.UserUpdateInput,
+  typeof prisma.user
 > {
   constructor() {
     super(prisma.user);
