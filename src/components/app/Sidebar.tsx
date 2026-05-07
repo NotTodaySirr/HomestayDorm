@@ -19,6 +19,7 @@ type NavigationItem = {
   icon: LucideIcon;
   badge?: number;
   activePaths?: string[];
+  excludePaths?: string[];
 };
 
 type NavigationSection = {
@@ -49,18 +50,19 @@ const navigationSections: NavigationSection[] = [
     items: [
       {
         label: "Tiếp nhận mới",
-        href: "/dashboard/checkins/new",
+        href: "/dashboard/registrations/new",
         icon: UserPlus,
       },
       {
-        label: "Đăng ký chi tiết",
+        label: "Phiếu đăng ký",
         href: "/dashboard/registrations",
         icon: FileText,
+        excludePaths: ["/dashboard/registrations/new"],
       },
       {
-        label: "Thu cọc / In biên nhận",
-        href: "/dashboard/deposits",
-        icon: Monitor,
+        label: "Lịch xem phòng",
+        href: "/dashboard/appointments",
+        icon: Clock3,
       },
     ],
   },
@@ -82,6 +84,10 @@ const navigationSections: NavigationSection[] = [
 ];
 
 function isActivePath(pathname: string, item: NavigationItem) {
+  if (item.excludePaths?.some(p => pathname === p || pathname.startsWith(`${p}/`))) {
+    return false;
+  }
+
   if (item.activePaths?.includes(pathname)) {
     return true;
   }
