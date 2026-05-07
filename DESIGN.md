@@ -165,6 +165,26 @@
   backgroundColor: "{colors.primary}"
   textColor: "#FFFFFF"
   rounded: "{rounded.md}"
+  padding: "8px 12px"
+  typography: "{typography.body-sm}"
+  role: "status"
+  placement: "Inline in the active page flow, usually below the page header and above the main content"
+  behavior: "Appears after an action completes; remains visible until the user changes context or another message replaces it"
+**success-toast:**
+  example: "Đã chuyển phiếu đối soát sang trạng thái chờ kế toán xử lý."
+  backgroundColor: "{colors.primary}"
+  textColor: "#FFFFFF"
+  rounded: "{rounded.md}"
+  padding: "8px 12px"
+  typography:
+    fontSize: 12px
+    fontWeight: 400
+    lineHeight: 1.5
+  width: "Full available content width"
+  border: "none"
+  icon: "none by default"
+  shadow: "none"
+  usage: "Use for successful user actions, completed saves, submitted forms, or completed state transitions"
 
 ### Data Display
 **panel:**

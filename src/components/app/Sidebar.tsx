@@ -15,10 +15,11 @@ import { usePathname } from "next/navigation";
 
 type NavigationItem = {
   label: string;
-  href: string;
+  href?: string;
   icon: LucideIcon;
   badge?: number;
   activePaths?: string[];
+  disabled?: boolean;
 };
 
 type NavigationSection = {
@@ -41,6 +42,27 @@ const navigationSections: NavigationSection[] = [
         href: "/dashboard/reconciliation",
         icon: ShieldCheck,
         badge: 2,
+      },
+    ],
+  },
+  {
+    title: "QUẢN LÝ TRẢ PHÒNG",
+    items: [
+      {
+        label: "Quản lý phiếu trả phòng",
+        href: "/dashboard/return-room-tickets",
+        icon: FileText,
+        badge: 2,
+      },
+      {
+        label: "Quản lý phiếu đối soát",
+        icon: ShieldCheck,
+        disabled: true,
+      },
+      {
+        label: "Cập nhật phòng/giường",
+        icon: Monitor,
+        disabled: true,
       },
     ],
   },
@@ -82,6 +104,10 @@ const navigationSections: NavigationSection[] = [
 ];
 
 function isActivePath(pathname: string, item: NavigationItem) {
+  if (!item.href) {
+    return false;
+  }
+
   if (item.activePaths?.includes(pathname)) {
     return true;
   }
@@ -105,19 +131,17 @@ export function Sidebar() {
               {section.items.map((item) => {
                 const Icon = item.icon;
                 const isActive = isActivePath(pathname, item);
-
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    aria-current={isActive ? "page" : undefined}
-                    className={`flex min-h-9 items-center gap-[9px] border-l-[3px] px-3.5 py-2 text-[12px] transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--color-primary)] ${
-                      isActive
-                        ? "border-[var(--color-primary)] bg-[var(--color-primary-container)] font-medium text-[var(--color-primary)]"
-                        : "border-transparent text-[var(--color-on-surface-secondary)] hover:bg-[var(--color-primary-container)] hover:text-[var(--color-primary)]"
-                    }`}
-                    title={item.label}
-                  >
+                const itemClasses = `flex min-h-9 items-center gap-[9px] border-l-[3px] px-3.5 py-2 text-[12px] transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--color-primary)] ${
+                  isActive
+                    ? "border-[var(--color-primary)] bg-[var(--color-primary-container)] font-medium text-[var(--color-primary)]"
+                    : "border-transparent text-[var(--color-on-surface-secondary)] hover:bg-[var(--color-primary-container)] hover:text-[var(--color-primary)]"
+                } ${
+                  item.disabled
+                    ? "cursor-not-allowed opacity-55 hover:bg-transparent hover:text-[var(--color-on-surface-secondary)]"
+                    : ""
+                }`;
+                const content = (
+                  <>
                     <Icon
                       aria-hidden="true"
                       className={`h-[18px] w-[18px] shrink-0 ${
@@ -133,6 +157,31 @@ export function Sidebar() {
                         {item.badge}
                       </span>
                     ) : null}
+                  </>
+                );
+
+                if (!item.href || item.disabled) {
+                  return (
+                    <span
+                      key={item.label}
+                      aria-disabled="true"
+                      className={itemClasses}
+                      title={item.label}
+                    >
+                      {content}
+                    </span>
+                  );
+                }
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={isActive ? "page" : undefined}
+                    className={itemClasses}
+                    title={item.label}
+                  >
+                    {content}
                   </Link>
                 );
               })}
