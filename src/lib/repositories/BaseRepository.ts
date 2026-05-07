@@ -1,10 +1,23 @@
 import prisma from '../db';
 
-export abstract class BaseRepository<T, CreateInput, UpdateInput> {
-  protected db = prisma;
-  protected model: any;
+type BaseModel<T, CreateInput, UpdateInput> = {
+  findUnique(args: { where: { id: string } }): Promise<T | null>;
+  findMany(): Promise<T[]>;
+  create(args: { data: CreateInput }): Promise<T>;
+  update(args: { where: { id: string }; data: UpdateInput }): Promise<T>;
+  delete(args: { where: { id: string } }): Promise<T>;
+};
 
-  constructor(model: any) {
+export abstract class BaseRepository<
+  T,
+  CreateInput,
+  UpdateInput,
+  Model extends BaseModel<T, CreateInput, UpdateInput>,
+> {
+  protected db = prisma;
+  protected model: Model;
+
+  constructor(model: Model) {
     this.model = model;
   }
 

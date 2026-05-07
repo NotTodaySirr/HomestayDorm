@@ -11,12 +11,15 @@ export async function GET() {
       message: 'Database connection and repository are working!',
       users,
     });
-  } catch (error: any) {
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown database error.';
+
     return NextResponse.json(
       {
         success: false,
         message: 'Failed to connect to the database. Make sure DATABASE_URL is set in .env and the database is running.',
-        error: error.message,
+        error: errorMessage,
       },
       { status: 500 }
     );
