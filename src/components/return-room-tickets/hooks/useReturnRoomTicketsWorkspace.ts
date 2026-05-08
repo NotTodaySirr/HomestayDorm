@@ -9,6 +9,7 @@ import type {
   AdvancedFilterState,
   QueueKey,
   ReturnRoomTicket,
+  RoomBedUpdateSubmission,
   SortKey,
 } from "@/lib/return-room-tickets/types";
 import {
@@ -19,13 +20,10 @@ import {
   applyCustomerAgreement,
   applyCustomerDisagreement,
   applyReconciliationSubmission,
-  applyRoomStatusSubmission,
+  applyRoomBedUpdateSubmission,
 } from "../logic/ticketWorkflowActions";
 import type { PanelMode } from "../types";
-import type {
-  ReconciliationSubmission,
-  RoomStatusSubmission,
-} from "../WorkflowPanels";
+import type { ReconciliationSubmission } from "../WorkflowPanels";
 
 export function useReturnRoomTicketsWorkspace(
   initialTickets: ReturnRoomTicket[],
@@ -37,6 +35,7 @@ export function useReturnRoomTicketsWorkspace(
   );
   const [panelMode, setPanelMode] = useState<PanelMode>("detail");
   const [notice, setNotice] = useState<string | null>(null);
+  const [roomBedModalOpen, setRoomBedModalOpen] = useState(false);
 
   const visibleTickets = useMemo(
     () => filterTickets(tickets, filters),
@@ -80,6 +79,7 @@ export function useReturnRoomTicketsWorkspace(
   function selectTicket(ticketId: string) {
     setSelectedTicketId(ticketId);
     showDetailPanel();
+    closeRoomBedModal();
     setNotice(null);
   }
 
@@ -91,8 +91,12 @@ export function useReturnRoomTicketsWorkspace(
     setPanelMode("reconciliation");
   }
 
-  function showRoomUpdatePanel() {
-    setPanelMode("roomUpdate");
+  function openRoomBedModal() {
+    setRoomBedModalOpen(true);
+  }
+
+  function closeRoomBedModal() {
+    setRoomBedModalOpen(false);
   }
 
   function updateSelectedTicket(
@@ -111,7 +115,6 @@ export function useReturnRoomTicketsWorkspace(
 
   function completeReconciliation(submission: ReconciliationSubmission) {
     const completedAt = getToday();
-
     updateSelectedTicket((ticket) =>
       applyReconciliationSubmission(ticket, submission, completedAt),
     );
@@ -129,12 +132,12 @@ export function useReturnRoomTicketsWorkspace(
     setNotice(returnRoomTicketToastMessages.customerDisagreed);
   }
 
-  function completeRoomUpdate(submission: RoomStatusSubmission) {
+  function completeRoomBedUpdate(submission: RoomBedUpdateSubmission) {
     const completedAt = getToday();
-
     updateSelectedTicket((ticket) =>
-      applyRoomStatusSubmission(ticket, submission, completedAt),
+      applyRoomBedUpdateSubmission(ticket, submission, completedAt),
     );
+    closeRoomBedModal();
     showDetailPanel();
     setNotice(returnRoomTicketToastMessages.roomUpdateCompleted);
   }
@@ -147,6 +150,7 @@ export function useReturnRoomTicketsWorkspace(
     effectiveSelectedTicketId,
     activePanelMode,
     notice,
+    roomBedModalOpen,
     setQueue,
     setSearch,
     setSort,
@@ -154,11 +158,12 @@ export function useReturnRoomTicketsWorkspace(
     selectTicket,
     showDetailPanel,
     showReconciliationPanel,
-    showRoomUpdatePanel,
+    openRoomBedModal,
+    closeRoomBedModal,
     completeReconciliation,
     markCustomerAgreed,
     markCustomerDisagreed,
-    completeRoomUpdate,
+    completeRoomBedUpdate,
   };
 }
 

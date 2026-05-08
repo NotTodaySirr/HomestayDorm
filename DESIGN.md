@@ -171,7 +171,7 @@
   placement: "Inline in the active page flow, usually below the page header and above the main content"
   behavior: "Appears after an action completes; remains visible until the user changes context or another message replaces it"
 **success-toast:**
-  example: "Đã chuyển phiếu đối soát sang trạng thái chờ kế toán xử lý."
+  example: "Đã chuyển phiếu thanh toán sang trạng thái chờ kế toán xử lý."
   backgroundColor: "{colors.primary}"
   textColor: "#FFFFFF"
   rounded: "{rounded.md}"
@@ -204,6 +204,34 @@
   textColor: "{colors.error}"
 **grid-cell-selected:**
   border: "2.5px solid {colors.primary}"
+
+### Overlays & Modals
+**modal-backdrop:**
+  backgroundColor: "rgba(0, 0, 0, 0.6)"
+  backdropFilter: "blur(4px)"
+  zIndex: 100
+**modal-container:**
+  backgroundColor: "{colors.surface}"
+  rounded: "{rounded.xl}"
+  shadow: "xl (High elevation to distinct from main surface)"
+  width: "Responsive, max-width typically between 400px and 640px"
+  layout: "Vertical flex column: Header -> Scrollable Body -> Footer"
+**modal-header:**
+  backgroundColor: "{colors.primary}"
+  textColor: "#FFFFFF"
+  padding: "16px 20px"
+  typography: "{typography.headline-md} or larger"
+  closeButtonPlacement: "Top right corner, vertically centered with title. Uses translucent white color."
+**modal-body:**
+  backgroundColor: "{colors.surface}"
+  padding: "20px 24px"
+  layout: "Vertical flow with appropriate gaps (16px to 24px) between input sections."
+**modal-footer:**
+  backgroundColor: "#FAFBFF"
+  borderTop: "1px solid {colors.border}"
+  padding: "16px 20px"
+  layout: "Flexbox, horizontal right-aligned (justify-end)."
+  buttonPlacement: "Primary/Submit action button MUST be placed on the extreme right. Secondary/Cancel action buttons MUST be placed immediately to the left of the Primary button. This ensures a consistent forward-moving workflow."
 
 ## Layout Strategy
 *   **Architecture:** Fixed shell (topbar + sidebar) with a fluid, multi-pane content area.

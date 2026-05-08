@@ -16,13 +16,13 @@ export const statusMeta: Record<ReturnTicketStatus, StatusMeta> = {
     shortLabel: "Chờ kiểm tra",
     tone: "warning",
     currentStep: "Kiểm tra phòng",
-    nextStep: "Lập phiếu đối soát và chuyển kế toán",
+    nextStep: "Lập phiếu thanh toán và chuyển kế toán",
   },
   reconciling: {
     label: "Đang đối soát",
     shortLabel: "Đang đối soát",
     tone: "primary",
-    currentStep: "Lập phiếu đối soát",
+    currentStep: "Lập phiếu thanh toán",
     nextStep: "Hoàn tất kiểm tra và chuyển kế toán",
   },
   waitingAccounting: {
@@ -120,7 +120,7 @@ export const queueStatusGroups: Record<QueueKey, ReturnTicketStatus[]> = {
 
 export function getPrimaryAction(ticket: ReturnRoomTicket) {
   if (ticket.status === "pendingManagerReview") {
-    return "Lập phiếu đối soát";
+    return "Lập phiếu thanh toán";
   }
 
   if (

@@ -1,15 +1,14 @@
 "use client";
 
 import { Toast } from "@/components/feedback/Toast";
+import { canUpdateRoomBeds } from "./logic/roomBedFinalization";
 import type { ReturnRoomTicket } from "@/lib/return-room-tickets/types";
 import { useReturnRoomTicketsWorkspace } from "./hooks/useReturnRoomTicketsWorkspace";
+import { RoomBedUpdateModal } from "./RoomBedUpdateModal";
 import { TicketDetailPanel } from "./TicketDetailPanel";
 import { TicketListPanel } from "./TicketListPanel";
 import { TicketToolbar } from "./TicketToolbar";
-import {
-  ReconciliationFormPanel,
-  RoomStatusUpdatePanel,
-} from "./WorkflowPanels";
+import { ReconciliationFormPanel } from "./WorkflowPanels";
 
 type ReturnRoomTicketsWorkspaceProps = {
   initialTickets: ReturnRoomTicket[];
@@ -26,6 +25,7 @@ export function ReturnRoomTicketsWorkspace({
     effectiveSelectedTicketId,
     activePanelMode,
     notice,
+    roomBedModalOpen,
     setQueue,
     setSearch,
     setSort,
@@ -33,15 +33,16 @@ export function ReturnRoomTicketsWorkspace({
     selectTicket,
     showDetailPanel,
     showReconciliationPanel,
-    showRoomUpdatePanel,
+    openRoomBedModal,
+    closeRoomBedModal,
     completeReconciliation,
     markCustomerAgreed,
     markCustomerDisagreed,
-    completeRoomUpdate,
+    completeRoomBedUpdate,
   } = useReturnRoomTicketsWorkspace(initialTickets);
 
   return (
-    <div className="flex w-full flex-col gap-3 sm:gap-4 xl:h-full">
+    <div className="relative flex w-full flex-col gap-3 sm:gap-4 xl:h-full">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-[20px] font-bold tracking-tight text-[var(--color-on-surface)]">
           Quản lý phiếu trả phòng
@@ -88,25 +89,26 @@ export function ReturnRoomTicketsWorkspace({
           />
         ) : null}
 
-        {selectedTicket && activePanelMode === "roomUpdate" ? (
-          <RoomStatusUpdatePanel
-            key={`${selectedTicket.id}-room-update`}
-            ticket={selectedTicket}
-            onCancel={showDetailPanel}
-            onSubmit={completeRoomUpdate}
-          />
-        ) : null}
-
         {activePanelMode === "detail" ? (
           <TicketDetailPanel
             ticket={selectedTicket}
             onStartReconciliation={showReconciliationPanel}
-            onStartRoomUpdate={showRoomUpdatePanel}
+            onStartRoomUpdate={openRoomBedModal}
             onCustomerAgreed={markCustomerAgreed}
             onCustomerDisagreed={markCustomerDisagreed}
           />
         ) : null}
       </section>
+
+      {selectedTicket && roomBedModalOpen && canUpdateRoomBeds(selectedTicket) ? (
+        <RoomBedUpdateModal
+          key={`${selectedTicket.id}-room-bed-modal`}
+          ticket={selectedTicket}
+          open={roomBedModalOpen}
+          onClose={closeRoomBedModal}
+          onSubmit={completeRoomBedUpdate}
+        />
+      ) : null}
     </div>
   );
 }

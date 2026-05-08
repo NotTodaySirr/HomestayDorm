@@ -1,1 +1,1 @@
-export type PanelMode = "detail" | "reconciliation" | "roomUpdate";
+export type PanelMode = "detail" | "reconciliation";

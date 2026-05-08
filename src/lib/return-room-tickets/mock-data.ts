@@ -34,7 +34,7 @@ export const returnRoomTickets: ReturnRoomTicket[] = [
     createdAt: "2026-06-18T09:30:00.000Z",
     status: "pendingManagerReview",
     priority: "urgent",
-    nextAction: "Lập phiếu đối soát",
+    nextAction: "Lập phiếu thanh toán",
     saleNote: "Khách báo trả phòng sớm, cần kiểm tra tài sản trong ngày.",
     tenant: {
       name: "Nguyễn Văn An",
@@ -69,7 +69,7 @@ export const returnRoomTickets: ReturnRoomTicket[] = [
     createdAt: "2026-06-17T15:10:00.000Z",
     status: "pendingManagerReview",
     priority: "normal",
-    nextAction: "Lập phiếu đối soát",
+    nextAction: "Lập phiếu thanh toán",
     saleNote: "Khách trả đúng hạn, không ghi nhận yêu cầu đặc biệt.",
     tenant: {
       name: "Trần Bình",
@@ -249,7 +249,15 @@ export const returnRoomTickets: ReturnRoomTicket[] = [
       bedCode: "Bed 04",
       currentStatus: "Chờ cập nhật",
       expectedReturnDate: "2026-06-19",
+      beds: [
+        { bedCode: "Bed 01", currentStatus: "DANG_THUE", inspectionResult: "DAT" },
+        { bedCode: "Bed 02", currentStatus: "DANG_THUE", inspectionResult: "HU_HONG" },
+        { bedCode: "Bed 03", currentStatus: "DANG_THUE", inspectionResult: "DAT" },
+        { bedCode: "Bed 04", currentStatus: "DANG_THUE", inspectionResult: "DAT" },
+      ],
     },
+    rentalType: "THUE_GIUONG",
+    contractedBedCodes: ["Bed 01", "Bed 02"],
     handoverAssets: sharedAssets,
     reconciliation: {
       code: "PDS003",

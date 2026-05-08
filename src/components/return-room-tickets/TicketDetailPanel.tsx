@@ -1,13 +1,8 @@
-import {
-  Check,
-  ClipboardCheck,
-  DoorOpen,
-  RotateCcw,
-  X,
-} from "lucide-react";
+import { Check, ClipboardCheck, DoorOpen, RotateCcw, X } from "lucide-react";
 import type { ReactNode } from "react";
 import type { ReturnRoomTicket } from "@/lib/return-room-tickets/types";
-import { getPrimaryAction, statusMeta } from "@/lib/return-room-tickets/status";
+import { statusMeta } from "@/lib/return-room-tickets/status";
+import { canUpdateRoomBeds } from "./logic/roomBedFinalization";
 import {
   ActionButton,
   DetailSection,
@@ -35,10 +30,7 @@ export function TicketDetailPanel({
   if (!ticket) {
     return (
       <section className="flex h-[500px] min-h-0 flex-col overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] xl:h-full">
-        <DetailHeader
-          title="Chưa chọn phiếu"
-          description="Chọn một phiếu trong danh sách"
-        />
+        <DetailHeader description="Chọn một phiếu trong danh sách" />
         <div className="flex min-h-0 flex-1 items-center justify-center px-4 text-center text-[12px] text-[var(--color-on-surface-secondary)]">
           Chọn một phiếu trong danh sách để xem thông tin xử lý.
         </div>
@@ -47,7 +39,6 @@ export function TicketDetailPanel({
   }
 
   const meta = statusMeta[ticket.status];
-  const primaryAction = getPrimaryAction(ticket);
   const shouldCreateReconciliation = ticket.status === "pendingManagerReview";
   const shouldConfirmCustomer =
     ticket.status === "accountingResultReady" ||
@@ -57,6 +48,8 @@ export function TicketDetailPanel({
     ticket.status === "waitingDepositRefund" ||
     ticket.status === "waitingExtraPayment";
   const shouldRecheck = ticket.status === "needsRecheck";
+  const canOpenRoomBedModal = canUpdateRoomBeds(ticket);
+
   const primaryActions = (
     <>
       {shouldCreateReconciliation ? (
@@ -65,7 +58,7 @@ export function TicketDetailPanel({
           variant="primary"
           onClick={onStartReconciliation}
         >
-          Lập phiếu đối soát
+          Lập phiếu thanh toán
         </ActionButton>
       ) : null}
 
@@ -75,14 +68,19 @@ export function TicketDetailPanel({
             Khách đồng ý
           </ActionButton>
           <ActionButton icon={X} variant="danger" onClick={onCustomerDisagreed}>
-            Không đồng ý
+            Khách không đồng ý
           </ActionButton>
         </>
       ) : null}
 
       {shouldUpdateRoom ? (
-        <ActionButton icon={DoorOpen} variant="primary" onClick={onStartRoomUpdate}>
-          Cập nhật phòng
+        <ActionButton
+          icon={DoorOpen}
+          variant="primary"
+          onClick={onStartRoomUpdate}
+          disabled={!canOpenRoomBedModal}
+        >
+          Cập nhật phòng/giường
         </ActionButton>
       ) : null}
 
@@ -95,22 +93,17 @@ export function TicketDetailPanel({
           Kiểm tra lại
         </ActionButton>
       ) : null}
-
-
     </>
   );
 
   return (
     <section className="flex h-[500px] min-h-0 flex-col overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] xl:h-full">
       <DetailHeader
-        title="Chi tiết phiếu"
         description={`${ticket.code} · ${ticket.tenant.name} · ${ticket.room.roomCode} / ${ticket.room.bedCode}`}
         action={<StatusPill status={ticket.status} />}
       />
 
       <div className="min-h-0 flex-1 overflow-auto">
-
-
         <DetailSection title="Thông tin chính">
           <dl>
             <FieldRow label="Khách thuê" value={ticket.tenant.name} />
@@ -133,7 +126,7 @@ export function TicketDetailPanel({
           <dl>
             <FieldRow label="Phiếu trả phòng" value={meta.label} />
             <FieldRow
-              label="Phiếu đối soát"
+              label="Phiếu thanh toán"
               value={ticket.reconciliation?.status ?? "Chưa lập"}
             />
             <FieldRow
@@ -162,10 +155,7 @@ export function TicketDetailPanel({
               value={formatDate(ticket.contract.endDate)}
             />
             <FieldRow label="Trạng thái HĐ" value={ticket.contract.status} />
-            <FieldRow
-              label="Tình trạng lưu trú"
-              value={ticket.contract.stayStatus}
-            />
+            <FieldRow label="Tình trạng lưu trú" value={ticket.contract.stayStatus} />
           </dl>
         </DetailSection>
 
@@ -173,10 +163,7 @@ export function TicketDetailPanel({
           <dl>
             <FieldRow label="Mã phòng" value={ticket.room.roomCode} />
             <FieldRow label="Mã giường" value={ticket.room.bedCode} />
-            <FieldRow
-              label="Trạng thái hiện tại"
-              value={ticket.room.currentStatus}
-            />
+            <FieldRow label="Trạng thái hiện tại" value={ticket.room.currentStatus} />
             <FieldRow
               label="Ngày trả thực tế"
               value={
@@ -185,67 +172,32 @@ export function TicketDetailPanel({
                   : "Chưa cập nhật"
               }
             />
+            <FieldRow
+              label="Trạng thái phòng sau cập nhật"
+              value={ticket.roomFinalization.roomStatusAfterCheckout ?? "Chưa cập nhật"}
+            />
           </dl>
-        </DetailSection>
-
-        {ticket.accountingResult ? (
-          <DetailSection title="Kết quả đối soát">
-            <dl>
-              <FieldRow
-                label="Tiền cọc gốc"
-                value={formatCurrency(ticket.accountingResult.depositAmount)}
-              />
-              <FieldRow
-                label="Tỷ lệ hoàn cọc"
-                value={`${ticket.accountingResult.refundRate}%`}
-              />
-              <FieldRow
-                label="Cọc hoàn cơ bản"
-                value={formatCurrency(ticket.accountingResult.baseRefund)}
-              />
-              <FieldRow
-                label="Tổng khấu trừ"
-                value={formatCurrency(ticket.accountingResult.totalDeductions)}
-              />
-              <FieldRow
-                label="Số tiền cuối cùng"
-                value={formatCurrency(ticket.accountingResult.finalAmount)}
-              />
-              <FieldRow
-                label="Kết luận"
-                value={ticket.accountingResult.conclusion}
-              />
-            </dl>
-
+          {ticket.roomFinalization.updatedBeds && ticket.roomFinalization.updatedBeds.length > 0 ? (
             <div className="mt-3 overflow-hidden rounded-[var(--radius-sm)] border border-[var(--color-border)]">
-              <div className="grid grid-cols-[1fr_120px] bg-[var(--color-secondary)] px-3 py-2 text-[11px] font-semibold uppercase leading-none tracking-[0.06em] text-[var(--color-on-secondary)]">
-                <span>Khoản khấu trừ</span>
-                <span className="text-right">Số tiền</span>
+              <div className="grid grid-cols-[1fr_160px] bg-[var(--color-secondary)] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--color-on-secondary)]">
+                <span>Giường đã cập nhật</span>
+                <span className="text-right">Trạng thái</span>
               </div>
-              {ticket.accountingResult.deductions.length > 0 ? (
-                ticket.accountingResult.deductions.map((deduction) => (
-                  <div
-                    key={deduction.id}
-                    className="grid grid-cols-[1fr_120px] border-t border-[var(--color-border)] px-3 py-2 text-[12px]"
-                  >
-                    <span>{deduction.description}</span>
-                    <span className="text-right font-medium">
-                      {formatCurrency(deduction.amount)}
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <div className="border-t border-[var(--color-border)] px-3 py-2 text-[12px] text-[var(--color-on-surface-secondary)]">
-                  Không có khoản khấu trừ.
+              {ticket.roomFinalization.updatedBeds.map((bed) => (
+                <div
+                  key={bed.bedCode}
+                  className="grid grid-cols-[1fr_160px] border-t border-[var(--color-border)] px-3 py-2 text-[12px]"
+                >
+                  <span>{bed.bedCode}</span>
+                  <span className="text-right">{bed.statusAfterCheckout}</span>
                 </div>
-              )}
+              ))}
             </div>
-          </DetailSection>
-        ) : null}
+          ) : null}
+        </DetailSection>
       </div>
 
       <div className="flex shrink-0 flex-col gap-2 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 sm:flex-row sm:items-center sm:justify-end">
-
         <div className="flex flex-wrap justify-end gap-2">{primaryActions}</div>
       </div>
     </section>
@@ -253,12 +205,11 @@ export function TicketDetailPanel({
 }
 
 type DetailHeaderProps = {
-  title: string;
   description: string;
   action?: ReactNode;
 };
 
-function DetailHeader({ title, description, action }: DetailHeaderProps) {
+function DetailHeader({ description, action }: DetailHeaderProps) {
   return (
     <div className="flex shrink-0 flex-col gap-3 border-b border-[var(--color-border)] bg-slate-50 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 items-start gap-3">

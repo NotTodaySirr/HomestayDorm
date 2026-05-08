@@ -1,8 +1,8 @@
-import type { ReturnRoomTicket } from "@/lib/return-room-tickets/types";
 import type {
-  ReconciliationSubmission,
-  RoomStatusSubmission,
-} from "../WorkflowPanels";
+  ReturnRoomTicket,
+  RoomBedUpdateSubmission,
+} from "@/lib/return-room-tickets/types";
+import type { ReconciliationSubmission } from "../WorkflowPanels";
 
 export function applyReconciliationSubmission(
   ticket: ReturnRoomTicket,
@@ -12,21 +12,21 @@ export function applyReconciliationSubmission(
   return {
     ...ticket,
     status: "waitingAccounting",
-    nextAction: "Theo dÃµi káº¿ toÃ¡n xá»­ lÃ½",
+    nextAction: "Theo dõi kế toán xử lý",
     reconciliation: {
       code: ticket.reconciliation?.code ?? createReconciliationCode(ticket),
-      status: "Chá» káº¿ toÃ¡n xá»­ lÃ½",
+      status: "Chờ kế toán xử lý",
       hygieneStatus: submission.hygieneStatus,
       keycardStatus: submission.keycardStatus,
       hasDamageOrLoss: submission.hasDamageOrLoss,
-      managerNotes: submission.managerNotes || "KhÃ´ng cÃ³ ghi chÃº thÃªm.",
+      managerNotes: submission.managerNotes || "Không có ghi chú thêm.",
       estimatedDeductions:
         submission.estimatedCost > 0 || submission.damageDescription
           ? [
               {
                 id: `${ticket.id}-manager-deduction-${completedAt}`,
                 description:
-                  submission.damageDescription || "Khoáº£n kháº¥u trá»« quáº£n lÃ½",
+                  submission.damageDescription || "Khoản khấu trừ quản lý",
                 amount: submission.estimatedCost,
                 source: "manager",
               },
@@ -43,7 +43,7 @@ export function applyCustomerAgreement(
   return {
     ...ticket,
     status: "customerConfirmed",
-    nextAction: "Cáº­p nháº­t phÃ²ng/giÆ°á»ng",
+    nextAction: "Cập nhật phòng/giường",
     customerConfirmation: {
       status: "agreed",
       confirmedAt,
@@ -57,48 +57,84 @@ export function applyCustomerDisagreement(
   return {
     ...ticket,
     status: "needsRecheck",
-    nextAction: "Kiá»ƒm tra láº¡i khoáº£n Ä‘á»‘i soÃ¡t",
+    nextAction: "Kiểm tra lại khoản đối soát",
     reconciliation: ticket.reconciliation
       ? {
           ...ticket.reconciliation,
-          status: "Cáº§n kiá»ƒm tra láº¡i",
+          status: "Cần kiểm tra lại",
         }
       : ticket.reconciliation,
     customerConfirmation: {
       status: "disagreed",
-      disagreementReason: "KhÃ¡ch yÃªu cáº§u kiá»ƒm tra láº¡i khoáº£n kháº¥u trá»«.",
+      disagreementReason: "Khách yêu cầu kiểm tra lại khoản khấu trừ.",
     },
   };
 }
 
-export function applyRoomStatusSubmission(
+export function applyRoomBedUpdateSubmission(
   ticket: ReturnRoomTicket,
-  submission: RoomStatusSubmission,
+  submission: RoomBedUpdateSubmission,
   completedAt: string,
 ): ReturnRoomTicket {
+  const mergedBeds =
+    ticket.room.beds?.map((bed) => {
+      const updated = submission.updates.find((item) => item.bedCode === bed.bedCode);
+      if (!updated) {
+        return bed;
+      }
+
+      return {
+        ...bed,
+        currentStatus: updated.statusAfterCheckout,
+      };
+    }) ?? ticket.room.beds;
+
   return {
     ...ticket,
     status: "completed",
-    nextAction: "KhÃ´ng cÃ²n hÃ nh Ä‘á»™ng báº¯t buá»™c",
+    nextAction: "Không còn hành động bắt buộc",
     contract: {
       ...ticket.contract,
-      status: "ÄÃ£ thanh lÃ½",
-      stayStatus: "ÄÃ£ tráº£ phÃ²ng",
+      status: "Đã thanh lý",
+      stayStatus: "Đã trả phòng",
     },
     room: {
       ...ticket.room,
-      currentStatus:
-        submission.finalStatus === "available" ? "Trá»‘ng" : "Cáº§n báº£o trÃ¬",
+      beds: mergedBeds,
+      currentStatus: mapRoomStatusToLabel(submission.roomStatusAfterCheckout),
       actualReturnDate: completedAt,
     },
     roomFinalization: {
-      status: submission.finalStatus,
-      note: submission.note,
+      status:
+        submission.roomStatusAfterCheckout === "CAN_BAO_TRI"
+          ? "maintenance"
+          : "available",
+      note: submission.generalNote || undefined,
       completedAt,
+      updatedBeds: submission.updates,
+      roomStatusAfterCheckout: submission.roomStatusAfterCheckout,
     },
   };
 }
 
 export function createReconciliationCode(ticket: ReturnRoomTicket) {
   return ticket.code.replace("PTP", "PDS");
+}
+
+function mapRoomStatusToLabel(
+  roomStatus: "TRONG" | "DANG_CO_NGUOI_O" | "CAN_BAO_TRI" | "KHONG_KHA_DUNG",
+) {
+  if (roomStatus === "TRONG") {
+    return "Trống";
+  }
+
+  if (roomStatus === "DANG_CO_NGUOI_O") {
+    return "Đang có người ở";
+  }
+
+  if (roomStatus === "CAN_BAO_TRI") {
+    return "Cần bảo trì";
+  }
+
+  return "Không khả dụng";
 }
