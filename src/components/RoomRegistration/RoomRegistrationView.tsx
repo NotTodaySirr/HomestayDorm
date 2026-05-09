@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useTransition } from 'react';
+import React, { useState, useTransition, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { createRegistrationTicket, openSingleBed } from '@/actions/room-registration';
+import { createRegistrationTicket, updateRegistrationTicket, openSingleBed } from '@/actions/room-registration';
 
 const CURRENT_BRANCH = "CN1 - Q.Bình Thạnh";
 
@@ -30,29 +30,57 @@ const formatCurrency = (amount: number) => {
 
 type ModalType = null;
 
-interface Props {
-  initialRooms: RoomData[];
+export interface RegistrationData {
+  id: string;
+  cccd: string | null;
+  customerName: string;
+  phoneNumber: string;
+  email: string | null;
+  dateOfBirth: Date | null;
+  gender: string | null;
+  address: string | null;
+  rentalType: string | null;
+  roomTypePreference: string | null;
+  headcount: number | null;
+  preferredArea: string | null;
+  minPrice: number | null;
+  maxPrice: number | null;
+  rentalDuration: string | null;
+  moveInDate: Date | null;
+  contactChannel: string | null;
+  additionalPreferences: string | null;
+  status: string;
+  consultingRooms: RoomData[];
 }
 
-export const RoomRegistrationView: React.FC<Props> = ({ initialRooms }) => {
+interface Props {
+  initialRooms: RoomData[];
+  initialRegistration?: RegistrationData;
+}
+
+export const RoomRegistrationView: React.FC<Props> = ({ initialRooms, initialRegistration }) => {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [activeModal, setActiveModal] = useState<ModalType>(null);
-  const [consultingRooms, setConsultingRooms] = useState<RoomData[]>([]);
+  const [consultingRooms, setConsultingRooms] = useState<RoomData[]>(
+    initialRegistration?.consultingRooms || []
+  );
   const [expandedRoomId, setExpandedRoomId] = useState<string | null>(null);
+
+  const isEditMode = !!initialRegistration;
 
   // Form & Filter states
   const [formData, setFormData] = useState({
-    gender: "",
-    rentalType: "",
-    roomTypePreference: "",
-    headcount: "",
-    minPrice: "",
-    maxPrice: "",
-    rentalDuration: "",
-    moveInDate: "",
-    contactChannel: "",
-    additionalPreferences: ""
+    gender: initialRegistration?.gender || "",
+    rentalType: initialRegistration?.rentalType || "",
+    roomTypePreference: initialRegistration?.roomTypePreference || "",
+    headcount: initialRegistration?.headcount?.toString() || "",
+    minPrice: initialRegistration?.minPrice?.toString() || "",
+    maxPrice: initialRegistration?.maxPrice?.toString() || "",
+    rentalDuration: initialRegistration?.rentalDuration || "",
+    moveInDate: initialRegistration?.moveInDate ? new Date(initialRegistration.moveInDate).toISOString().split('T')[0] : "",
+    contactChannel: initialRegistration?.contactChannel || "",
+    additionalPreferences: initialRegistration?.additionalPreferences || ""
   });
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -86,7 +114,11 @@ export const RoomRegistrationView: React.FC<Props> = ({ initialRooms }) => {
     formData.append('roomIds', roomIds);
     startTransition(async () => {
       try {
-        await createRegistrationTicket(formData);
+        if (isEditMode) {
+          await updateRegistrationTicket(initialRegistration.id, formData);
+        } else {
+          await createRegistrationTicket(formData);
+        }
         router.push('/dashboard/registrations');
       } catch (error) {
         console.error('Submission error:', error);
@@ -227,9 +259,11 @@ export const RoomRegistrationView: React.FC<Props> = ({ initialRooms }) => {
       {/* Right Pane - Registration Form */}
       <form action={handleFormSubmit} className="flex-1 flex flex-col bg-surface border border-border rounded-[8px] p-[16px]">
         <div className="flex justify-between items-center mb-[16px] pb-[12px] border-b border-border">
-          <h2 className="text-[15px] font-semibold">Phiếu đăng ký thuê phòng</h2>
-          <span className="bg-warning-container text-warning px-[9px] py-[3px] rounded-full text-[10px] font-semibold uppercase tracking-wider">
-            Nháp
+          <h2 className="text-[15px] font-semibold">{isEditMode ? 'Cập nhật phiếu đăng ký' : 'Phiếu đăng ký thuê phòng'}</h2>
+          <span className={`px-[9px] py-[3px] rounded-full text-[10px] font-semibold uppercase tracking-wider ${
+            isEditMode ? 'bg-primary-container text-primary' : 'bg-warning-container text-warning'
+          }`}>
+            {isEditMode ? (initialRegistration.status === 'CONSULTING' ? 'Đang tư vấn' : initialRegistration.status === 'WAITING_VIEW' ? 'Chờ xem phòng' : initialRegistration.status === 'COMPLETED' ? 'Hoàn thành' : initialRegistration.status) : 'Đang tư vấn'}
           </span>
         </div>
 
@@ -242,23 +276,23 @@ export const RoomRegistrationView: React.FC<Props> = ({ initialRooms }) => {
             <div className="grid grid-cols-2 gap-[12px]">
               <div>
                 <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">CCCD / CMND</label>
-                <input name="cccd" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="Nhập số CCCD..." />
+                <input name="cccd" defaultValue={initialRegistration?.cccd || ''} className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="Nhập số CCCD..." />
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Họ và tên <span className="text-error">*</span></label>
-                <input name="customerName" required className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="Nhập họ tên đầy đủ..." />
+                <input name="customerName" required defaultValue={initialRegistration?.customerName || ''} className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="Nhập họ tên đầy đủ..." />
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Số điện thoại <span className="text-error">*</span></label>
-                <input name="phoneNumber" required className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="VD: 0901234567" />
+                <input name="phoneNumber" required defaultValue={initialRegistration?.phoneNumber || ''} className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="VD: 0901234567" />
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Email</label>
-                <input name="email" type="email" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="VD: email@gmail.com" />
+                <input name="email" type="email" defaultValue={initialRegistration?.email || ''} className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="VD: email@gmail.com" />
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Ngày sinh</label>
-                <input name="dateOfBirth" type="date" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" />
+                <input name="dateOfBirth" type="date" defaultValue={initialRegistration?.dateOfBirth ? new Date(initialRegistration.dateOfBirth).toISOString().split('T')[0] : ''} className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" />
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Giới tính khách hàng</label>
@@ -281,7 +315,7 @@ export const RoomRegistrationView: React.FC<Props> = ({ initialRooms }) => {
               </div>
               <div className="col-span-2">
                 <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Địa chỉ thường trú</label>
-                <input name="address" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="Nhập địa chỉ đầy đủ..." />
+                <input name="address" defaultValue={initialRegistration?.address || ''} className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="Nhập địa chỉ đầy đủ..." />
               </div>
             </div>
           </section>
@@ -418,7 +452,7 @@ export const RoomRegistrationView: React.FC<Props> = ({ initialRooms }) => {
               <><Loader2 className="w-[14px] h-[14px] animate-spin" /> Đang lưu...</>
             ) : (
               <>
-                Lưu Phiếu 
+                {isEditMode ? 'Cập nhật Phiếu' : 'Lưu Phiếu'} 
                 <span className="bg-primary-light text-secondary-darker rounded-[3px] font-mono text-[10px] px-[4px] py-[1px]">Ctrl+S</span>
               </>
             )}

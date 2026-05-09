@@ -38,7 +38,7 @@ export async function getRegistrationsForDeposit() {
   return prisma.registrationTicket.findMany({
     where: {
       branchId: branch.id,
-      status: { in: ['DRAFT', 'CONSULTING', 'WAITING_VIEW', 'WAITLIST', 'COMPLETED'] },
+      status: { in: ['CONSULTING', 'WAITING_VIEW', 'WAITLIST', 'COMPLETED'] },
     },
     include: {
       consultingRooms: {

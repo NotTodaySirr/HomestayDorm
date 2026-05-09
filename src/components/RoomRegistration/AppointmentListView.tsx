@@ -93,6 +93,7 @@ export const AppointmentListView: React.FC<Props> = ({ initialAppointments }) =>
   const [updateModalAptId, setUpdateModalAptId] = useState<string | null>(null);
   const [cancelModalAptId, setCancelModalAptId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [isPending, startTransition] = useTransition();
 
@@ -101,13 +102,16 @@ export const AppointmentListView: React.FC<Props> = ({ initialAppointments }) =>
   };
 
   const filteredAppointments = initialAppointments.filter(apt => {
-    if (!searchQuery) return true;
-    const lowerQ = searchQuery.toLowerCase();
-    return (
-      apt.registration?.customerName.toLowerCase().includes(lowerQ) ||
-      apt.registration?.phoneNumber.includes(lowerQ) ||
-      apt.room?.name.toLowerCase().includes(lowerQ)
-    );
+    const matchSearch = !searchQuery || (() => {
+      const lowerQ = searchQuery.toLowerCase();
+      return (
+        apt.registration?.customerName.toLowerCase().includes(lowerQ) ||
+        apt.registration?.phoneNumber.includes(lowerQ) ||
+        apt.room?.name.toLowerCase().includes(lowerQ)
+      );
+    })();
+    const matchStatus = !statusFilter || apt.status === statusFilter;
+    return matchSearch && matchStatus;
   });
 
   const ITEMS_PER_PAGE = 5;
@@ -128,11 +132,15 @@ export const AppointmentListView: React.FC<Props> = ({ initialAppointments }) =>
             className="bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary placeholder:text-on-surface-secondary col-span-2" 
             placeholder="Tìm theo tên khách, SĐT, hoặc phòng..." 
           />
-          <select className="bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary text-on-surface-secondary">
+          <select 
+            value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+            className="bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary text-on-surface-secondary"
+          >
             <option value="">Tất cả trạng thái</option>
-            <option value="upcoming">Sắp tới</option>
-            <option value="viewed">Đã xem</option>
-            <option value="cancelled">Đã hủy</option>
+            <option value="UPCOMING">Sắp tới</option>
+            <option value="VIEWED">Đã xem</option>
+            <option value="CANCELLED">Đã hủy</option>
           </select>
         </div>
       </div>

@@ -110,10 +110,65 @@ export async function createRegistrationTicket(formData: FormData) {
       moveInDate: moveInDateStr ? new Date(moveInDateStr) : undefined,
       contactChannel: contactChannel || undefined,
       additionalPreferences: additionalPreferences || undefined,
-      status: 'DRAFT',
+      status: 'CONSULTING',
       
       consultingRooms: {
         connect: roomIds.map((id) => ({ id }))
+      }
+    }
+  });
+
+  revalidatePath('/dashboard/registrations');
+}
+
+export async function updateRegistrationTicket(id: string, formData: FormData) {
+  // Customer Info
+  const cccd = formData.get('cccd') as string | null;
+  const customerName = formData.get('customerName') as string;
+  const phoneNumber = formData.get('phoneNumber') as string;
+  const email = formData.get('email') as string | null;
+  const dateOfBirthStr = formData.get('dateOfBirth') as string | null;
+  const gender = formData.get('gender') as string | null;
+  const address = formData.get('address') as string | null;
+
+  // Rental Requirements
+  const rentalType = formData.get('rentalType') as string | null;
+  const roomTypePreference = formData.get('roomTypePreference') as string | null;
+  const headcount = formData.get('headcount') ? Number(formData.get('headcount')) : null;
+  const preferredArea = formData.get('preferredArea') as string | null;
+  const minPrice = formData.get('minPrice') ? Number(formData.get('minPrice')) : null;
+  const maxPrice = formData.get('maxPrice') ? Number(formData.get('maxPrice')) : null;
+  const rentalDuration = formData.get('rentalDuration') as string | null;
+  const moveInDateStr = formData.get('moveInDate') as string | null;
+  const contactChannel = formData.get('contactChannel') as string | null;
+  const additionalPreferences = formData.get('additionalPreferences') as string | null;
+
+  const roomIdsRaw = formData.get('roomIds') as string | null;
+  const roomIds = roomIdsRaw ? roomIdsRaw.split(',').filter(Boolean) : [];
+
+  await prisma.registrationTicket.update({
+    where: { id },
+    data: {
+      cccd: cccd || null,
+      customerName,
+      phoneNumber,
+      email: email || null,
+      dateOfBirth: dateOfBirthStr ? new Date(dateOfBirthStr) : null,
+      gender: gender || null,
+      address: address || null,
+      rentalType: rentalType || null,
+      roomTypePreference: roomTypePreference || null,
+      headcount,
+      preferredArea: preferredArea || null,
+      minPrice,
+      maxPrice,
+      rentalDuration: rentalDuration || null,
+      moveInDate: moveInDateStr ? new Date(moveInDateStr) : null,
+      contactChannel: contactChannel || null,
+      additionalPreferences: additionalPreferences || null,
+      
+      consultingRooms: {
+        set: roomIds.map((roomId) => ({ id: roomId }))
       }
     }
   });
@@ -249,7 +304,11 @@ export async function getRegistrationById(id: string) {
   return prisma.registrationTicket.findUnique({
     where: { id },
     include: {
-      consultingRooms: true,
+      consultingRooms: {
+        include: {
+          beds: { orderBy: { position: 'asc' } }
+        }
+      },
     },
   });
 }

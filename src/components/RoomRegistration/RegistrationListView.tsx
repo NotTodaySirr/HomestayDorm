@@ -33,7 +33,6 @@ const formatDate = (date: Date) => {
 
 const getStatusColor = (status: string) => {
   switch (status) {
-    case 'DRAFT': return 'bg-secondary-dark text-on-surface-secondary';
     case 'CONSULTING': return 'bg-primary-container text-primary';
     case 'WAITING_VIEW': return 'bg-warning-container text-warning';
     case 'WAITLIST': return 'bg-warning-container text-warning opacity-80';
@@ -45,7 +44,6 @@ const getStatusColor = (status: string) => {
 
 const getStatusLabel = (status: string) => {
   switch (status) {
-    case 'DRAFT': return 'Nháp';
     case 'CONSULTING': return 'Đang tư vấn';
     case 'WAITING_VIEW': return 'Chờ xem phòng';
     case 'WAITLIST': return 'Danh sách chờ';
@@ -66,16 +64,20 @@ export const RegistrationListView: React.FC<Props> = ({ initialTickets }) => {
   const [cancelModalRegId, setCancelModalRegId] = React.useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState('');
   const [currentPage, setCurrentPage] = React.useState(1);
 
   const filteredTickets = initialTickets.filter(reg => {
-    if (!searchQuery) return true;
-    const lowerQ = searchQuery.toLowerCase();
-    return (
-      reg.id.toLowerCase().includes(lowerQ) ||
-      reg.customerName.toLowerCase().includes(lowerQ) ||
-      reg.phoneNumber.includes(lowerQ)
-    );
+    const matchSearch = !searchQuery || (() => {
+      const lowerQ = searchQuery.toLowerCase();
+      return (
+        reg.id.toLowerCase().includes(lowerQ) ||
+        reg.customerName.toLowerCase().includes(lowerQ) ||
+        reg.phoneNumber.includes(lowerQ)
+      );
+    })();
+    const matchStatus = !statusFilter || reg.status === statusFilter;
+    return matchSearch && matchStatus;
   });
 
   const ITEMS_PER_PAGE = 5;
@@ -96,13 +98,17 @@ export const RegistrationListView: React.FC<Props> = ({ initialTickets }) => {
             className="bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary placeholder:text-on-surface-secondary col-span-3" 
             placeholder="Tìm theo mã phiếu, tên khách, hoặc SĐT..." 
           />
-          <select className="bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary text-on-surface-secondary">
+          <select 
+            value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+            className="bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary text-on-surface-secondary"
+          >
             <option value="">Tất cả trạng thái</option>
-            <option value="draft">Nháp</option>
-            <option value="consulting">Đang tư vấn</option>
-            <option value="waiting_view">Chờ xem phòng</option>
-            <option value="waitlist">Danh sách chờ</option>
-            <option value="cancelled">Đã hủy</option>
+            <option value="CONSULTING">Đang tư vấn</option>
+            <option value="WAITING_VIEW">Chờ xem phòng</option>
+            <option value="WAITLIST">Danh sách chờ</option>
+            <option value="COMPLETED">Hoàn thành</option>
+            <option value="CANCELLED">Đã hủy</option>
           </select>
         </div>
       </div>
@@ -161,7 +167,7 @@ export const RegistrationListView: React.FC<Props> = ({ initialTickets }) => {
                     </>
                   )}
                   <button 
-                    onClick={() => router.push('/dashboard/registrations/new')}
+                    onClick={() => router.push(`/dashboard/registrations/${reg.id}`)}
                     className="bg-surface border border-border text-on-surface px-[10px] py-[5px] rounded-[5px] text-[12px] font-semibold hover:bg-secondary flex items-center justify-center gap-[6px] transition-colors"
                   >
                     Mở 
