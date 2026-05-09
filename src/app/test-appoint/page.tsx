@@ -4,7 +4,7 @@ import { AppointmentListView } from '@/components/RoomRegistration/AppointmentLi
 export default function TestRegistrationListPage() {
   return (
     <div className="h-[calc(100vh-2rem)] w-full"> 
-      <AppointmentListView />
+      <AppointmentListView initialAppointments={[]} />
     </div>
   );
 } 

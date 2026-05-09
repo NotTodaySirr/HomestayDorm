@@ -2,6 +2,7 @@ import "dotenv/config";
 import pg from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client';
+import bcrypt from 'bcrypt';
 
 const connectionString = `${process.env.DATABASE_URL}`;
 const pool = new pg.Pool({ connectionString });
@@ -36,22 +37,35 @@ async function main() {
   });
 
   // ===== Users =====
+  const adminPassword = await bcrypt.hash('admin_password_unhashed', 10);
   const admin = await prisma.user.create({
     data: {
       email: 'admin@homestaydorm.com',
-      password: 'admin_password_unhashed',
+      password: adminPassword,
       name: 'Quản Lý Tâm',
       role: 'ADMIN',
       branchId: branch1.id,
     },
   });
 
+  const salePassword = await bcrypt.hash('sale_password_unhashed', 10);
   const sale1 = await prisma.user.create({
     data: {
       email: 'sale1@homestaydorm.com',
-      password: 'sale_password_unhashed',
+      password: salePassword,
       name: 'NV Sale - Hương',
       role: 'USER',
+      branchId: branch1.id,
+    },
+  });
+
+  const accountantPassword = await bcrypt.hash('ketoan_password_unhashed', 10);
+  const accountant1 = await prisma.user.create({
+    data: {
+      email: 'ketoan@homestaydorm.com',
+      password: accountantPassword,
+      name: 'Kế toán - Linh',
+      role: 'ACCOUNTANT',
       branchId: branch1.id,
     },
   });
@@ -73,17 +87,17 @@ async function main() {
 
   // Tạo 6 phòng cho CN1
   const roomsDataCN1 = [
-    { name: '101', capacity: 6, price: 1500000 },
-    { name: '102', capacity: 4, price: 1800000 },
-    { name: '103', capacity: 2, price: 2500000 },
-    { name: '201', capacity: 6, price: 1600000 },
-    { name: '202', capacity: 4, price: 2000000 },
-    { name: '203', capacity: 2, price: 2800000 },
+    { name: '101', capacity: 6, price: 1500000, roomType: 'ktx', gender: 'm', amenities: 'Máy lạnh, Tủ lạnh' },
+    { name: '102', capacity: 4, price: 1800000, roomType: 'ktx', gender: 'f', amenities: 'Máy lạnh, Ban công' },
+    { name: '103', capacity: 2, price: 2500000, roomType: 'studio', gender: 'all', amenities: 'Bếp riêng, Máy lạnh' },
+    { name: '201', capacity: 6, price: 1600000, roomType: 'ktx', gender: 'm', amenities: 'Quạt, Ban công' },
+    { name: '202', capacity: 4, price: 2000000, roomType: 'ktx', gender: 'f', amenities: 'Máy lạnh' },
+    { name: '203', capacity: 2, price: 2800000, roomType: '1pn', gender: 'all', amenities: 'Full nội thất' },
   ];
 
   for (const r of roomsDataCN1) {
     const room = await prisma.room.create({
-      data: { branchId: branch1.id, name: r.name, capacity: r.capacity, occupancy: 0, price: r.price, status: 'AVAILABLE' }
+      data: { branchId: branch1.id, name: r.name, capacity: r.capacity, occupancy: 0, price: r.price, status: 'AVAILABLE', roomType: r.roomType, gender: r.gender, amenities: r.amenities }
     });
     await createBedsForRoom(room.id, r.capacity, r.price);
   }

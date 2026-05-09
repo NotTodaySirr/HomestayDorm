@@ -31,6 +31,7 @@ type Registration = {
   headcount: number | null;
   preferredArea: string | null;
   status: string;
+  consultingRooms?: { id: string }[];
 };
 
 interface Props {
@@ -103,17 +104,25 @@ export const CreateDepositView: React.FC<Props> = ({ rooms, registrations }) => 
             {rooms.map(room => {
               const available = room.beds.filter(b => b.status === 'AVAILABLE').length;
               const isSelected = room.id === selectedRoomId;
+              const isConsulted = selectedReg?.consultingRooms?.some(cr => cr.id === room.id);
               return (
                 <button
                   key={room.id}
                   onClick={() => handleRoomChange(room.id)}
-                  className={`p-3 border rounded-[6px] text-left transition-all ${
+                  className={`p-3 border rounded-[6px] text-left transition-all relative ${
                     isSelected 
                       ? 'border-primary bg-primary-container ring-1 ring-primary' 
-                      : 'border-border hover:border-primary hover:bg-primary-container'
+                      : isConsulted 
+                        ? 'border-warning bg-warning-container hover:border-primary'
+                        : 'border-border hover:border-primary hover:bg-primary-container'
                   } ${available === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                   disabled={available === 0}
                 >
+                  {isConsulted && (
+                    <span className="absolute -top-2 -right-2 bg-warning text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">
+                      Đã tư vấn
+                    </span>
+                  )}
                   <div className="font-semibold text-[13px]">Phòng {room.name}</div>
                   <div className="text-[11px] text-on-surface-secondary mt-1">
                     {available}/{room.capacity} giường trống • {formatCurrency(room.price)}/giường
@@ -189,7 +198,18 @@ export const CreateDepositView: React.FC<Props> = ({ rooms, registrations }) => 
             </div>
             <select
               value={selectedRegId}
-              onChange={(e) => setSelectedRegId(e.target.value)}
+              onChange={(e) => {
+                const regId = e.target.value;
+                setSelectedRegId(regId);
+                const reg = registrations.find(r => r.id === regId);
+                if (reg && reg.consultingRooms && reg.consultingRooms.length > 0) {
+                  setSelectedRoomId(reg.consultingRooms[0].id);
+                  setSelectedBedIds(new Set());
+                } else {
+                  setSelectedRoomId('');
+                  setSelectedBedIds(new Set());
+                }
+              }}
               className="w-full bg-surface border border-border rounded-[5px] px-3 py-2 text-[13px] focus:outline-none focus:border-primary"
             >
               <option value="">Chọn phiếu đăng ký...</option>

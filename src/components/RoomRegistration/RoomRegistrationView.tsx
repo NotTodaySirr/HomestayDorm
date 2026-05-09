@@ -14,6 +14,9 @@ export interface RoomData {
   occupancy: number;
   price: number;
   status: string;
+  roomType: string;
+  gender: string;
+  amenities: string | null;
   beds: {
     id: string;
     position: string;
@@ -37,6 +40,36 @@ export const RoomRegistrationView: React.FC<Props> = ({ initialRooms }) => {
   const [activeModal, setActiveModal] = useState<ModalType>(null);
   const [consultingRooms, setConsultingRooms] = useState<RoomData[]>([]);
   const [expandedRoomId, setExpandedRoomId] = useState<string | null>(null);
+
+  // Form & Filter states
+  const [formData, setFormData] = useState({
+    gender: "",
+    rentalType: "",
+    roomTypePreference: "",
+    headcount: "",
+    minPrice: "",
+    maxPrice: "",
+    rentalDuration: "",
+    moveInDate: "",
+    contactChannel: "",
+    additionalPreferences: ""
+  });
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const filteredRooms = initialRooms.filter((room) => {
+    const available = room.capacity - room.occupancy;
+    if (formData.headcount && available < parseInt(formData.headcount)) return false;
+    if (formData.maxPrice && room.price > parseInt(formData.maxPrice)) return false;
+    if (formData.minPrice && room.price < parseInt(formData.minPrice)) return false;
+    if (formData.roomTypePreference && room.roomType !== formData.roomTypePreference) return false;
+    if (formData.gender && room.gender !== 'all' && room.gender !== formData.gender) return false;
+    
+    return true;
+  });
 
   const handleAddToConsulting = (room: RoomData) => {
     if (!consultingRooms.find(r => r.id === room.id)) {
@@ -69,30 +102,10 @@ export const RoomRegistrationView: React.FC<Props> = ({ initialRooms }) => {
           Danh sách phòng trống
         </div>
         
-        {/* Filter Bar */}
-        <div className="grid grid-cols-4 gap-[10px] mb-[8px]">
-          <select disabled defaultValue="binh_thanh" className="bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary text-on-surface-secondary opacity-70 cursor-not-allowed">
-            <option value="binh_thanh">{CURRENT_BRANCH}</option>
-          </select>
-          <select className="bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary text-on-surface-secondary">
-            <option value="">Loại phòng...</option>
-            <option value="male">KTX Nam</option>
-            <option value="female">KTX Nữ</option>
-          </select>
-          <select className="bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary text-on-surface-secondary">
-            <option value="">Giới tính...</option>
-            <option value="m">Nam</option>
-            <option value="f">Nữ</option>
-          </select>
-          <input type="number" className="bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary placeholder:text-on-surface-secondary" placeholder="Số lượng..." />
-          <input className="bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary placeholder:text-on-surface-secondary" placeholder="Mức giá..." />
-          <input type="date" className="bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary text-on-surface-secondary" />
-          <select className="bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary text-on-surface-secondary">
-            <option value="">Thời hạn thuê...</option>
-            <option value="6m">6 tháng</option>
-            <option value="12m">12 tháng</option>
-          </select>
-          <input className="bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary placeholder:text-on-surface-secondary" placeholder="Tiện ích ưu tiên..." />
+        {/* Filter Bar (Now Auto-Filtered) */}
+        <div className="bg-primary-container text-primary text-[12px] font-semibold px-[12px] py-[8px] rounded-[5px] mb-[8px] flex justify-between items-center">
+          <span>Hệ thống đang tự động lọc phòng theo "Yêu cầu thuê" bên phải</span>
+          <span className="bg-primary text-white px-[8px] py-[2px] rounded-[10px] text-[11px]">{filteredRooms.length} kết quả</span>
         </div>
 
         {/* Data Grid */}
@@ -108,7 +121,13 @@ export const RoomRegistrationView: React.FC<Props> = ({ initialRooms }) => {
               </tr>
             </thead>
             <tbody>
-              {initialRooms.map((room) => {
+              {filteredRooms.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-[12px] py-[16px] text-center text-[13px] text-on-surface-secondary">
+                    Không tìm thấy phòng phù hợp với tiêu chí lọc.
+                  </td>
+                </tr>
+              ) : filteredRooms.map((room) => {
                 const available = room.capacity - room.occupancy;
                 const statusLabel = available > 0 ? `Trống ${available}` : 'Đã đầy';
                 const isExpanded = expandedRoomId === room.id;
@@ -242,11 +261,22 @@ export const RoomRegistrationView: React.FC<Props> = ({ initialRooms }) => {
                 <input name="dateOfBirth" type="date" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Giới tính</label>
-                <select name="gender" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary">
+                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Giới tính khách hàng</label>
+                <select name="gender" value={formData.gender} onChange={handleFormChange} className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary">
                   <option value="">Chọn giới tính...</option>
                   <option value="m">Nam</option>
                   <option value="f">Nữ</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Kênh tiếp nhận</label>
+                <select name="contactChannel" value={formData.contactChannel} onChange={handleFormChange} className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary">
+                  <option value="">Chọn kênh liên hệ...</option>
+                  <option value="facebook">Facebook</option>
+                  <option value="zalo">Zalo</option>
+                  <option value="hotline">Hotline</option>
+                  <option value="referral">Người quen giới thiệu</option>
+                  <option value="walkin">Đến trực tiếp</option>
                 </select>
               </div>
               <div className="col-span-2">
@@ -257,73 +287,81 @@ export const RoomRegistrationView: React.FC<Props> = ({ initialRooms }) => {
           </section>
           
           <section>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-on-surface-secondary mb-[12px]">
-              2. Yêu cầu thuê
+            <div className="flex justify-between items-center mb-[12px]">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-on-surface-secondary">
+                2. Yêu cầu thuê
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="text-[11px] font-semibold text-primary hover:underline"
+              >
+                {showAdvanced ? '- Thu gọn' : '+ Tiêu chí nâng cao'}
+              </button>
             </div>
+            
             <div className="grid grid-cols-2 gap-[12px]">
+              {/* YÊU CẦU CƠ BẢN */}
               <div>
                 <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Hình thức thuê</label>
-                <select name="rentalType" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary">
+                <select name="rentalType" value={formData.rentalType} onChange={handleFormChange} className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary">
                   <option value="">Chọn hình thức...</option>
                   <option value="nguyen_can">Nguyên căn</option>
                   <option value="o_ghep">Ở ghép</option>
                 </select>
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Loại phòng mong muốn</label>
-                <select name="roomTypePreference" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary">
-                  <option value="">Chọn loại phòng...</option>
+                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Loại phòng</label>
+                <select name="roomTypePreference" value={formData.roomTypePreference} onChange={handleFormChange} className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary">
+                  <option value="">Tất cả loại phòng</option>
                   <option value="ktx">KTX</option>
                   <option value="studio">Studio</option>
                   <option value="1pn">1 Phòng ngủ</option>
                 </select>
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Khu vực ưu tiên</label>
-                <input type="hidden" name="preferredArea" value="binh_thanh" />
-                <select disabled defaultValue="binh_thanh" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary opacity-70 cursor-not-allowed">
-                  <option value="binh_thanh">{CURRENT_BRANCH}</option>
-                </select>
-              </div>
-              <div>
                 <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Số người ở</label>
-                <input name="headcount" type="number" min="1" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="VD: 2" />
-              </div>
-              <div>
-                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Ngân sách tối thiểu (VNĐ)</label>
-                <input name="minPrice" type="number" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="VD: 1500000" />
+                <input name="headcount" value={formData.headcount} onChange={handleFormChange} type="number" min="1" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="VD: 2" />
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Ngân sách tối đa (VNĐ)</label>
-                <input name="maxPrice" type="number" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="VD: 3000000" />
-              </div>
-              <div>
-                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Thời hạn thuê</label>
-                <select name="rentalDuration" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary">
-                  <option value="">Chọn thời hạn...</option>
-                  <option value="6m">6 tháng</option>
-                  <option value="12m">12 tháng</option>
-                </select>
+                <input name="maxPrice" value={formData.maxPrice} onChange={handleFormChange} type="number" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="VD: 3000000" />
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Ngày dự kiến vào ở</label>
-                <input name="moveInDate" type="date" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" />
+                <input name="moveInDate" value={formData.moveInDate} onChange={handleFormChange} type="date" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" />
               </div>
-              <div className="col-span-2">
-                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Kênh tiếp nhận</label>
-                <select name="contactChannel" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary">
-                  <option value="">Chọn kênh liên hệ...</option>
-                  <option value="facebook">Facebook</option>
-                  <option value="zalo">Zalo</option>
-                  <option value="hotline">Hotline</option>
-                  <option value="referral">Người quen giới thiệu</option>
-                  <option value="walkin">Đến trực tiếp</option>
-                </select>
-              </div>
-              <div className="col-span-2">
-                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Tiêu chí ưu tiên khác</label>
-                <textarea name="additionalPreferences" rows={2} className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary resize-none" placeholder="VD: Yêu cầu có máy lạnh, ban công, cho nuôi pet..."></textarea>
-              </div>
+
+              {/* YÊU CẦU NÂNG CAO */}
+              {showAdvanced && (
+                <>
+                  <div className="col-span-2 border-t border-border mt-[4px] pt-[12px] grid grid-cols-2 gap-[12px]">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Ngân sách tối thiểu (VNĐ)</label>
+                      <input name="minPrice" value={formData.minPrice} onChange={handleFormChange} type="number" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="VD: 1500000" />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Thời hạn thuê</label>
+                      <select name="rentalDuration" value={formData.rentalDuration} onChange={handleFormChange} className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary">
+                        <option value="">Chọn thời hạn...</option>
+                        <option value="6m">6 tháng</option>
+                        <option value="12m">12 tháng</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Khu vực ưu tiên</label>
+                      <input type="hidden" name="preferredArea" value="binh_thanh" />
+                      <select disabled defaultValue="binh_thanh" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary opacity-70 cursor-not-allowed">
+                        <option value="binh_thanh">{CURRENT_BRANCH}</option>
+                      </select>
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Tiêu chí ưu tiên khác</label>
+                      <textarea name="additionalPreferences" value={formData.additionalPreferences} onChange={handleFormChange} rows={2} className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary resize-none" placeholder="VD: Yêu cầu có máy lạnh, ban công, cho nuôi pet..."></textarea>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </section>
 

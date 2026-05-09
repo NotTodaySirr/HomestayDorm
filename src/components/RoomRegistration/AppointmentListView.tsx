@@ -3,7 +3,9 @@
 import React, { useState, useTransition } from 'react';
 import { UpdateViewingResultModal } from './UpdateViewingResultModal';
 import { cancelViewingAppointment } from '@/actions/room-registration';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
+
+// ... (other imports remain)
 
 const CURRENT_BRANCH = "CN1 - Q.Bình Thạnh";
 
@@ -41,26 +43,61 @@ const getStatusLabel = (status: string) => {
   }
 };
 
+function CancelModal({ aptId, onClose }: { aptId: string; onClose: () => void }) {
+  const [isPending, startTransition] = useTransition();
+
+  const handleConfirm = () => {
+    startTransition(async () => {
+      try {
+        await cancelViewingAppointment(aptId);
+        onClose();
+      } catch (error) {
+        console.error('Lỗi khi hủy:', error);
+      }
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 font-['Segoe_UI']">
+      <div className="bg-surface rounded-[8px] border border-border w-full max-w-sm shadow-lg overflow-hidden transform transition-all">
+        <div className="p-4 border-b border-border bg-error-container/30 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-error-container flex items-center justify-center shrink-0">
+            <AlertCircle className="w-4 h-4 text-error" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-[14px] text-error">Hủy lịch hẹn xem phòng</h3>
+            <p className="text-[11px] text-on-surface-secondary mt-0.5">Xác nhận hủy lịch hẹn với khách hàng</p>
+          </div>
+        </div>
+        <div className="p-5 text-[13px] text-on-surface-secondary leading-relaxed">
+          Bạn có chắc chắn muốn hủy lịch hẹn xem phòng này không? Trạng thái của phiếu đăng ký liên quan có thể cũng sẽ được cập nhật.
+        </div>
+        <div className="p-4 border-t border-border bg-secondary/50 flex justify-end gap-2">
+          <button onClick={onClose} disabled={isPending} className="px-4 py-2 bg-surface border border-border rounded-[5px] text-[12px] font-semibold hover:bg-secondary disabled:opacity-50 transition-colors">
+            Giữ lại lịch
+          </button>
+          <button onClick={handleConfirm} disabled={isPending} className="px-4 py-2 bg-error text-white rounded-[5px] text-[12px] font-semibold hover:bg-error/90 disabled:opacity-50 flex items-center gap-2 transition-colors">
+            {isPending ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Đang hủy...</> : 'Xác nhận hủy'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface Props {
   initialAppointments: AppointmentData[];
 }
 
 export const AppointmentListView: React.FC<Props> = ({ initialAppointments }) => {
   const [updateModalAptId, setUpdateModalAptId] = useState<string | null>(null);
+  const [cancelModalAptId, setCancelModalAptId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [isPending, startTransition] = useTransition();
 
   const handleCancel = (id: string) => {
-    if (confirm('Bạn có chắc muốn hủy lịch hẹn này?')) {
-      startTransition(async () => {
-        try {
-          await cancelViewingAppointment(id);
-        } catch (error) {
-          console.error('Lỗi khi hủy:', error);
-        }
-      });
-    }
+    setCancelModalAptId(id);
   };
 
   const filteredAppointments = initialAppointments.filter(apt => {
@@ -186,6 +223,7 @@ export const AppointmentListView: React.FC<Props> = ({ initialAppointments }) =>
       )}
 
       {updateModalAptId && <UpdateViewingResultModal appointmentId={updateModalAptId} onClose={() => setUpdateModalAptId(null)} />}
+      {cancelModalAptId && <CancelModal aptId={cancelModalAptId} onClose={() => setCancelModalAptId(null)} />}
     </div>
   );
 };

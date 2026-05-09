@@ -149,7 +149,7 @@ function getAllBeds(ticket: ReturnRoomTicket) {
     {
       bedCode: ticket.room.bedCode,
       currentStatus: "DANG_THUE" as const,
-      inspectionResult: ticket.reconciliation?.hasDamageOrLoss ? "HU_HONG" : "DAT",
+      inspectionResult: (ticket.reconciliation?.hasDamageOrLoss ? "HU_HONG" : "DAT") as "HU_HONG" | "DAT",
     },
   ];
 }
@@ -166,7 +166,7 @@ function getContractedBedCodes(ticket: ReturnRoomTicket, allBeds: RoomBedState[]
   return [ticket.room.bedCode];
 }
 
-function mapRoomBedCurrentStatusToPostCheckoutStatus(status: BedOccupancyStatus) {
+function mapRoomBedCurrentStatusToPostCheckoutStatus(status: BedOccupancyStatus): "DANG_THUE" | "CAN_BAO_TRI" | "TRONG" | "KHONG_KHA_DUNG" {
   if (status === "DANG_THUE") {
     return "DANG_THUE";
   }

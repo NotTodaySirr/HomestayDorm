@@ -40,6 +40,11 @@ export async function getRegistrationsForDeposit() {
       branchId: branch.id,
       status: { in: ['DRAFT', 'CONSULTING', 'WAITING_VIEW', 'WAITLIST', 'COMPLETED'] },
     },
+    include: {
+      consultingRooms: {
+        select: { id: true }
+      }
+    },
     orderBy: { createdAt: 'desc' },
   });
 }

@@ -4,7 +4,7 @@ import { RegistrationListView } from '@/components/RoomRegistration'; // Đổi 
 export default function TestRegistrationListPage() {
   return (
     <div className="h-[calc(100vh-2rem)] w-full"> 
-      <RegistrationListView />
+      <RegistrationListView initialTickets={[]} />
     </div>
   );
 }

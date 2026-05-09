@@ -66,8 +66,33 @@ function Countdown({ deadline }: { deadline: string }) {
 function PayModal({ depositId, onClose }: { depositId: string; onClose: () => void }) {
   const [isPending, startTransition] = useTransition();
   const [payMethod, setPayMethod] = useState(''); // State để theo dõi hình thức thanh toán
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement> | React.DragEvent<HTMLDivElement>, isDrop = false) => {
+    let file: File | undefined;
+    if (isDrop) {
+      e.preventDefault();
+      setIsDragging(false);
+      file = (e as React.DragEvent<HTMLDivElement>).dataTransfer.files?.[0];
+    } else {
+      file = (e as React.ChangeEvent<HTMLInputElement>).target.files?.[0];
+    }
+
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleSubmit = (formData: FormData) => {
+    if (payMethod === 'TRANSFER' && !previewUrl) {
+      alert("Vui lòng tải lên ảnh minh chứng chuyển khoản!");
+      return;
+    }
     startTransition(async () => {
       await markDepositPaid(depositId, formData);
       onClose();
@@ -105,9 +130,41 @@ function PayModal({ depositId, onClose }: { depositId: string; onClose: () => vo
                 <input name="transactionId" required disabled={isPending} className="w-full bg-surface border border-border rounded-[5px] px-3 py-2 text-[13px] focus:outline-none focus:border-primary disabled:opacity-50" placeholder="VD: FT24050812345" />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-1">Link ảnh minh chứng (UNC / Bill)</label>
-                <input name="proofUrl" type="url" required disabled={isPending} className="w-full bg-surface border border-border rounded-[5px] px-3 py-2 text-[13px] focus:outline-none focus:border-primary disabled:opacity-50" placeholder="https://..." />
-                <div className="text-[10px] text-on-surface-secondary mt-1 italic">*Bắt buộc tải lên ảnh minh chứng chuyển khoản</div>
+                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-1">Ảnh minh chứng (UNC / Bill)</label>
+                <input type="hidden" name="proofUrl" value={previewUrl || ''} />
+                
+                <div 
+                  className={`border-2 border-dashed rounded-[8px] p-4 text-center cursor-pointer transition-colors relative overflow-hidden ${
+                    isDragging ? 'border-primary bg-primary-container/30' : 'border-border hover:bg-secondary/50'
+                  } ${previewUrl ? 'p-1 border-primary/30' : ''}`}
+                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={(e) => handleFileChange(e, true)}
+                >
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+                    onChange={(e) => handleFileChange(e, false)} 
+                    disabled={isPending}
+                  />
+                  {previewUrl ? (
+                    <div className="relative w-full h-32 bg-secondary rounded-[6px] overflow-hidden">
+                      <img src={previewUrl} alt="Preview" className="w-full h-full object-contain" />
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                        <span className="text-white text-[12px] font-semibold">Bấm hoặc kéo thả để đổi ảnh</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-4">
+                      <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center mx-auto mb-2 text-on-surface-secondary">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                      </div>
+                      <p className="text-[12px] font-semibold text-on-surface">Kéo thả ảnh vào đây</p>
+                      <p className="text-[11px] text-on-surface-secondary mt-1">hoặc bấm để tải lên (PNG, JPG)</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </>
           )}

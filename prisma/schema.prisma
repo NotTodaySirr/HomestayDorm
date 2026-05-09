@@ -15,6 +15,7 @@ datasource db {
 enum Role {
   USER
   ADMIN
+  ACCOUNTANT
 }
 
 model User {
@@ -65,6 +66,9 @@ model Room {
   occupancy     Int      @default(0)
   price         Float          // Giá tham khảo (giá thực tế theo từng Giường)
   status        String   @default("AVAILABLE") // AVAILABLE, FULL, MAINTENANCE
+  roomType      String   @default("ktx")       // ktx, studio, 1pn
+  gender        String   @default("all")       // m, f, all
+  amenities     String?                        // Tiện ích phòng
 
   beds          Bed[]
   appointments  ViewingAppointment[]

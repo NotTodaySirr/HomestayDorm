@@ -27,16 +27,18 @@ type NavigationItem = {
   excludePaths?: string[];
   query?: Record<string, string>;
   action?: "logout";
+  roles?: string[];
 };
 
 type NavigationSection = {
   title: string;
   items: NavigationItem[];
+  roles?: string[];
 };
 
 const navigationSections: NavigationSection[] = [
   {
-    title: "KẾ TOÁN",
+    title: "TỔNG QUAN",
     items: [
       {
         label: "Dashboard",
@@ -50,36 +52,11 @@ const navigationSections: NavigationSection[] = [
           "/dashboard/check-in-contracts",
         ],
       },
-      {
-        label: "Quản lý phiếu thanh toán",
-        href: "/dashboard/payment-slips",
-        icon: ReceiptText,
-      },
     ],
   },
   {
-    title: "QUẢN LÝ TRẢ PHÒNG",
-    items: [
-      {
-        label: "Quản lý phiếu trả phòng",
-        href: "/dashboard/return-room-tickets",
-        icon: FileText,
-        badge: 2,
-      },
-      {
-        label: "Quản lý phiếu thanh toán",
-        icon: ShieldCheck,
-        disabled: true,
-      },
-      {
-        label: "Cập nhật phòng/giường",
-        icon: Monitor,
-        disabled: true,
-      },
-    ],
-  },
-  {
-    title: "ĐĂNG KÝ",
+    title: "ĐĂNG KÝ & HỢP ĐỒNG",
+    roles: ["USER"], // Sale
     items: [
       {
         label: "Tiếp nhận mới",
@@ -97,10 +74,16 @@ const navigationSections: NavigationSection[] = [
         href: "/dashboard/appointments",
         icon: Clock3,
       },
+      {
+        label: "Quản lý hợp đồng",
+        href: "/dashboard/check-in-contracts",
+        icon: FileSignature,
+      },
     ],
   },
   {
-    title: "ĐẶT CỌC",
+    title: "QUẢN LÝ ĐẶT CỌC",
+    roles: ["ACCOUNTANT"], // Kế toán
     items: [
       {
         label: "Tạo phiếu cọc",
@@ -113,15 +96,49 @@ const navigationSections: NavigationSection[] = [
         icon: FileText,
         excludePaths: ["/dashboard/deposits/new"],
       },
+    ],
+  },
+  {
+    title: "KẾ TOÁN & THANH TOÁN",
+    roles: ["ACCOUNTANT"], // Kế toán
+    items: [
       {
-        label: "Quản lý hợp đồng",
-        href: "/dashboard/check-in-contracts",
-        icon: FileSignature,
+        label: "Quản lý phiếu thanh toán",
+        href: "/dashboard/payment-slips",
+        icon: ReceiptText,
+      },
+      {
+        label: "Thu tiền thuê phòng",
+        icon: ReceiptText,
+        disabled: true,
+      },
+    ],
+  },
+  {
+    title: "QUẢN LÝ TRẢ PHÒNG & BÀN GIAO",
+    roles: ["ADMIN"], // Quản lý
+    items: [
+      {
+        label: "Quản lý phiếu trả phòng",
+        href: "/dashboard/return-room-tickets",
+        icon: FileText,
+        badge: 2,
+      },
+      {
+        label: "Biên bản bàn giao",
+        icon: FileText,
+        disabled: true,
+      },
+      {
+        label: "Cập nhật phòng/giường",
+        icon: Monitor,
+        disabled: true,
       },
     ],
   },
   {
     title: "BÁO CÁO",
+    roles: ["ADMIN", "ACCOUNTANT"], // Quản lý & Kế toán
     items: [
       {
         label: "Doanh thu",
@@ -180,15 +197,23 @@ function isActivePath(
   return item.href !== "/dashboard/payment-slips" || !currentQueue;
 }
 
-export function Sidebar() {
+export function Sidebar({ userRole = "USER" }: { userRole?: string }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentQueue = searchParams.get("queue");
 
+  const filteredSections = navigationSections
+    .filter((section) => !section.roles || section.roles.includes(userRole))
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => !item.roles || item.roles.includes(userRole)),
+    }))
+    .filter((section) => section.items.length > 0);
+
   return (
     <aside className="flex h-full w-[var(--sidebar-width)] flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-on-surface-secondary)]">
       <nav className="flex-1 overflow-y-auto py-2" aria-label="Điều hướng chính">
-        {navigationSections.map((section) => (
+        {filteredSections.map((section) => (
           <div key={section.title} className="pb-2">
             <div className="px-3 pb-1 pt-2.5 text-[10px] font-semibold uppercase leading-none tracking-[0.08em] text-[var(--color-on-secondary)]">
               {section.title}
