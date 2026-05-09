@@ -5,7 +5,7 @@ import type {
   ReturnTicketFilterState,
   SortKey,
 } from "./types";
-import { isUrgentTicket, queueStatusGroups } from "./status";
+import { queueStatusGroups } from "./status";
 
 export const emptyAdvancedFilters: AdvancedFilterState = {
   ticketCode: "",
@@ -114,7 +114,7 @@ function sortTickets(tickets: ReturnRoomTicket[], sort: SortKey) {
   return [...tickets].sort((first, second) => {
     if (sort === "urgentFirst") {
       const urgentScore =
-        Number(isUrgentTicket(second)) - Number(isUrgentTicket(first));
+        Number(isTicketOverdue(second)) - Number(isTicketOverdue(first));
 
       if (urgentScore !== 0) {
         return urgentScore;
@@ -153,4 +153,12 @@ function matchesRoomOrBed(ticket: ReturnRoomTicket, roomOrBed: string) {
 
 function normalizeText(value: string) {
   return value.trim().toLocaleLowerCase("vi-VN");
+}
+
+function isTicketOverdue(ticket: ReturnRoomTicket) {
+  const expectedDate = new Date(ticket.room.expectedReturnDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  expectedDate.setHours(0, 0, 0, 0);
+  return ticket.status !== "completed" && expectedDate.getTime() < today.getTime();
 }

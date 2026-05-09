@@ -7,7 +7,10 @@ export const returnRoomTicketToastMessages = {
 } as const;
 
 export const paymentSlipToastMessages = {
-  calculationConfirmed: "Đã xác nhận kết quả tính toán phiếu thanh toán.",
+  calculationConfirmed:
+    "Đã xác nhận kết quả tính toán phiếu thanh toán.",
+  customerConfirmed: "Đã ghi nhận khách đồng ý với kết quả thanh toán.",
+  customerRejected: "Đã chuyển phiếu sang nhóm cần kiểm tra lại.",
   extraPaymentCreated: "Đã lập phiếu thanh toán thêm cho khách.",
   refundConfirmed: "Đã xác nhận hoàn tiền cọc cho khách.",
   extraPaymentReceived: "Đã xác nhận đã nhận tiền thanh toán thêm.",

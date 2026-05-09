@@ -33,8 +33,6 @@ export const returnRoomTickets: ReturnRoomTicket[] = [
     code: "PTP001",
     createdAt: "2026-06-18T09:30:00.000Z",
     status: "pendingManagerReview",
-    priority: "urgent",
-    nextAction: "Lập phiếu thanh toán",
     saleNote: "Khách báo trả phòng sớm, cần kiểm tra tài sản trong ngày.",
     tenant: {
       name: "Nguyễn Văn An",
@@ -68,8 +66,6 @@ export const returnRoomTickets: ReturnRoomTicket[] = [
     code: "PTP002",
     createdAt: "2026-06-17T15:10:00.000Z",
     status: "pendingManagerReview",
-    priority: "normal",
-    nextAction: "Lập phiếu thanh toán",
     saleNote: "Khách trả đúng hạn, không ghi nhận yêu cầu đặc biệt.",
     tenant: {
       name: "Trần Bình",
@@ -104,8 +100,6 @@ export const returnRoomTickets: ReturnRoomTicket[] = [
     code: "PTP003",
     createdAt: "2026-06-16T11:00:00.000Z",
     status: "waitingAccounting",
-    priority: "normal",
-    nextAction: "Theo dõi kế toán xử lý",
     saleNote: "Quản lý đã ghi nhận remote máy lạnh hỏng.",
     tenant: {
       name: "Lê Chi",
@@ -155,8 +149,6 @@ export const returnRoomTickets: ReturnRoomTicket[] = [
     code: "PTP004",
     createdAt: "2026-06-15T08:20:00.000Z",
     status: "accountingResultReady",
-    priority: "urgent",
-    nextAction: "Ghi nhận khách xác nhận",
     saleNote: "Khách đang chờ kết quả hoàn cọc để rời đi.",
     tenant: {
       name: "Phạm Duy",
@@ -228,8 +220,6 @@ export const returnRoomTickets: ReturnRoomTicket[] = [
     code: "PTP005",
     createdAt: "2026-06-14T10:45:00.000Z",
     status: "customerConfirmed",
-    priority: "normal",
-    nextAction: "Cập nhật phòng/giường",
     saleNote: "Khách đã xác nhận qua điện thoại.",
     tenant: {
       name: "Hoàng Mai",
@@ -290,8 +280,6 @@ export const returnRoomTickets: ReturnRoomTicket[] = [
     code: "PTP006",
     createdAt: "2026-06-13T13:15:00.000Z",
     status: "needsRecheck",
-    priority: "overdue",
-    nextAction: "Kiểm tra lại khoản khấu trừ",
     saleNote: "Khách không đồng ý khoản bồi thường chìa khóa.",
     tenant: {
       name: "Võ Gia Hân",
@@ -358,8 +346,6 @@ export const returnRoomTickets: ReturnRoomTicket[] = [
     code: "PTP007",
     createdAt: "2026-06-11T16:40:00.000Z",
     status: "completed",
-    priority: "normal",
-    nextAction: "Không còn hành động bắt buộc",
     saleNote: "Phiếu đã hoàn tất.",
     tenant: {
       name: "Đặng Quốc Việt",
@@ -411,3 +397,5 @@ export const returnRoomTickets: ReturnRoomTicket[] = [
     },
   },
 ];
+
+

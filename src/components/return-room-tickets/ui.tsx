@@ -15,8 +15,19 @@ const toneClasses: Record<StatusTone, string> = {
   muted: "bg-[var(--color-secondary)] text-[var(--color-on-surface-secondary)]",
 };
 
-export function formatDate(value: string) {
-  return new Intl.DateTimeFormat("vi-VN").format(new Date(`${value}T00:00:00`));
+export function formatDate(value?: string | null) {
+  if (!value) {
+    return "Chưa xác định";
+  }
+
+  const normalizedValue = value.includes("T") ? value : `${value}T00:00:00`;
+  const date = new Date(normalizedValue);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Chưa xác định";
+  }
+
+  return new Intl.DateTimeFormat("vi-VN").format(date);
 }
 
 export function formatCurrency(value: number) {

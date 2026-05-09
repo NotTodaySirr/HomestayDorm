@@ -35,6 +35,9 @@ export function useCheckInContractsWorkspace(
     initialRecords[0] ? createContractDraftFromRecord(initialRecords[0]) : null,
   );
   const [notice, setNotice] = useState<string | null>(null);
+  const [returnTicketModalOpen, setReturnTicketModalOpen] = useState(false);
+  const [returnTicketSubmitting, setReturnTicketSubmitting] = useState(false);
+  const [returnTicketError, setReturnTicketError] = useState<string | null>(null);
 
   // Sync with URL on mount
   useEffect(() => {
@@ -160,10 +163,12 @@ export function useCheckInContractsWorkspace(
                 ...record,
                 status: 'contractCreated' as const,
                 contract: {
+                  id: result.contractId ?? selectedRecord.contract?.id ?? "",
                   code: `HD${String(currentRecords.length + 1).padStart(3, '0')}`,
                   startDate: draft.startDate,
                   paymentCycle: draft.paymentCycle,
                   rentalType: draft.rentalType,
+                  status: "active" as const,
                 },
               }
             : record,
@@ -177,6 +182,58 @@ export function useCheckInContractsWorkspace(
     }
   }
 
+  function openReturnTicketModal() {
+    setReturnTicketError(null);
+    setReturnTicketModalOpen(true);
+  }
+
+  function closeReturnTicketModal() {
+    if (!returnTicketSubmitting) {
+      setReturnTicketModalOpen(false);
+      setReturnTicketError(null);
+    }
+  }
+
+  async function completeReturnTicketCreation(input: { expectedReturnDate: string; saleNote: string }) {
+    if (!selectedRecord?.contract) return;
+
+    setReturnTicketSubmitting(true);
+    setReturnTicketError(null);
+
+    const { createReturnRoomTicketFromContract } = await import('@/actions/check-in-contracts');
+    const result = await createReturnRoomTicketFromContract(selectedRecord.contract.id, {
+      expectedReturnDate: new Date(input.expectedReturnDate),
+      saleNote: input.saleNote,
+    });
+
+    setReturnTicketSubmitting(false);
+
+    if (!result.success) {
+      setReturnTicketError(result.error || "Không thể tạo phiếu trả phòng");
+      return;
+    }
+
+    setRecords((currentRecords) =>
+      currentRecords.map((record) =>
+        record.id === selectedRecord.id && record.contract
+          ? {
+              ...record,
+              contract: {
+                ...record.contract,
+                returnTicket: {
+                  id: result.ticketId ?? "",
+                  code: result.ticketCode ?? "PTP",
+                  status: "PENDING_MANAGER_REVIEW",
+                },
+              },
+            }
+          : record,
+      ),
+    );
+    setReturnTicketModalOpen(false);
+    setNotice(`Đã tạo phiếu trả phòng ${result.ticketCode ?? ""}.`);
+  }
+
   return {
     state: {
       filters,
@@ -186,6 +243,9 @@ export function useCheckInContractsWorkspace(
       screenMode,
       draft,
       notice,
+      returnTicketModalOpen,
+      returnTicketSubmitting,
+      returnTicketError,
     },
     actions: {
       setSearch,
@@ -197,6 +257,9 @@ export function useCheckInContractsWorkspace(
       cancelContractForm,
       updateDraft,
       completeContractCreation,
+      openReturnTicketModal,
+      closeReturnTicketModal,
+      completeReturnTicketCreation,
     },
   };
 }

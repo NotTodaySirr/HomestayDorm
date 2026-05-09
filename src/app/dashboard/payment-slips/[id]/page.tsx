@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { getPaymentSlipById } from "@/actions/payment-slips";
 import { PaymentSlipDetailView } from "@/components/payment-slips/PaymentSlipDetailView";
-import { paymentSlips } from "@/lib/payment-slips/mock-data";
 
 export const metadata: Metadata = {
   title: "Chi tiết phiếu thanh toán | HomestayDorm",
@@ -15,7 +15,7 @@ export default async function PaymentSlipDetailPage({
   params,
 }: PaymentSlipDetailPageProps) {
   const { id } = await params;
-  const slip = paymentSlips.find((item) => item.id === id);
+  const slip = await getPaymentSlipById(id);
 
   if (!slip) {
     notFound();

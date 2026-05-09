@@ -12,7 +12,6 @@ export function applyReconciliationSubmission(
   return {
     ...ticket,
     status: "waitingAccounting",
-    nextAction: "Theo dõi kế toán xử lý",
     reconciliation: {
       code: ticket.reconciliation?.code ?? createReconciliationCode(ticket),
       status: "Chờ kế toán xử lý",
@@ -43,7 +42,6 @@ export function applyCustomerAgreement(
   return {
     ...ticket,
     status: "customerConfirmed",
-    nextAction: "Cập nhật phòng/giường",
     customerConfirmation: {
       status: "agreed",
       confirmedAt,
@@ -57,7 +55,6 @@ export function applyCustomerDisagreement(
   return {
     ...ticket,
     status: "needsRecheck",
-    nextAction: "Kiểm tra lại khoản đối soát",
     reconciliation: ticket.reconciliation
       ? {
           ...ticket.reconciliation,
@@ -92,7 +89,6 @@ export function applyRoomBedUpdateSubmission(
   return {
     ...ticket,
     status: "completed",
-    nextAction: "Không còn hành động bắt buộc",
     contract: {
       ...ticket.contract,
       status: "Đã thanh lý",
@@ -138,3 +134,4 @@ function mapRoomStatusToLabel(
 
   return "Không khả dụng";
 }
+

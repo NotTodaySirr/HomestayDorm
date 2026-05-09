@@ -145,6 +145,3 @@ export function getPrimaryAction(ticket: ReturnRoomTicket) {
   return "Xem chi tiết";
 }
 
-export function isUrgentTicket(ticket: ReturnRoomTicket) {
-  return ticket.priority === "urgent" || ticket.priority === "overdue";
-}

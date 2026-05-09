@@ -80,6 +80,7 @@ export type Deduction = {
 };
 
 export type ReconciliationInfo = {
+  id: string;
   code: string;
   status: string;
   hygieneStatus: "passed" | "failed";
@@ -126,8 +127,6 @@ export type ReturnRoomTicket = {
   code: string;
   createdAt: string;
   status: ReturnTicketStatus;
-  priority: "normal" | "urgent" | "overdue";
-  nextAction: string;
   saleNote: string;
   tenant: TenantInfo;
   contract: ContractInfo;

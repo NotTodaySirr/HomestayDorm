@@ -31,12 +31,14 @@ type ReconciliationFormPanelProps = {
   ticket: ReturnRoomTicket;
   onCancel: () => void;
   onSubmit: (submission: ReconciliationSubmission) => void;
+  isSubmitting?: boolean;
 };
 
 export function ReconciliationFormPanel({
   ticket,
   onCancel,
   onSubmit,
+  isSubmitting = false,
 }: ReconciliationFormPanelProps) {
   const initialFormState = useMemo(
     () =>
@@ -84,7 +86,7 @@ export function ReconciliationFormPanel({
   return (
     <section className="flex h-[500px] min-h-0 flex-col overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] xl:h-full">
       <div className="flex min-h-[54px] items-center gap-3 border-b border-[var(--color-border)] px-3 py-2">
-        <ActionButton icon={ArrowLeft} onClick={onCancel}>
+        <ActionButton icon={ArrowLeft} onClick={onCancel} disabled={isSubmitting}>
           Chi tiết
         </ActionButton>
         <h2 className="min-w-0 truncate text-[13px] font-semibold uppercase leading-[1.4] tracking-[0.06em] text-[var(--color-on-secondary)]">
@@ -245,8 +247,8 @@ export function ReconciliationFormPanel({
 
         </div>
         <div className="flex shrink-0 flex-wrap justify-end gap-2 p-3">
-          <ActionButton icon={Save}>Lưu nháp</ActionButton>
-          <ActionButton icon={Send} type="submit" variant="primary">
+          <ActionButton icon={Save} disabled={isSubmitting}>Lưu nháp</ActionButton>
+          <ActionButton icon={Send} type="submit" variant="primary" disabled={isSubmitting}>
             Hoàn tất kiểm tra & chuyển kế toán
           </ActionButton>
         </div>

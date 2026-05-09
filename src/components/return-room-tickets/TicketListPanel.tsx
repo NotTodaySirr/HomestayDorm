@@ -4,12 +4,11 @@ import type {
   ReturnRoomTicket,
   SortKey,
 } from "@/lib/return-room-tickets/types";
-import { queueLabels, statusMeta } from "@/lib/return-room-tickets/status";
+import { queueLabels } from "@/lib/return-room-tickets/status";
 import {
   ActionButton,
   cx,
   formatDate,
-  PriorityFlag,
   StatusPill,
 } from "./ui";
 import { QueueTabs } from "./QueueTabs";
@@ -18,7 +17,7 @@ const sortLabels: Record<SortKey, string> = {
   newest: "Mới nhất",
   oldest: "Cũ nhất",
   nearestReturn: "Ngày trả gần nhất",
-  urgentFirst: "Ưu tiên gấp",
+  urgentFirst: "Quá hạn trước",
 };
 
 type TicketListPanelProps = {
@@ -82,13 +81,13 @@ export function TicketListPanel({
                 <th className="w-[128px] px-3 py-2">Phòng</th>
                 <th className="w-[116px] px-3 py-2">Ngày trả</th>
                 <th className="w-[158px] px-3 py-2">Trạng thái</th>
-                <th className="px-3 py-2">Việc cần làm</th>
                 <th className="w-[118px] px-3 py-2 text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border)]">
               {tickets.map((ticket) => {
                 const isSelected = ticket.id === selectedTicketId;
+                const isOverdue = isTicketOverdue(ticket);
 
                 return (
                   <tr
@@ -104,18 +103,18 @@ export function TicketListPanel({
                         <span
                           className={cx(
                             "block h-8 w-[3px] rounded-full",
-                            ticket.priority === "normal"
-                              ? "bg-transparent"
-                              : "bg-[var(--color-warning)]",
+                            isOverdue ? "bg-[var(--color-warning)]" : "bg-transparent",
                           )}
                         />
                         <div className="min-w-0">
                           <p className="font-mono text-[11px] font-semibold text-[var(--color-on-surface)]">
                             {ticket.code}
                           </p>
-                          <div className="mt-1">
-                            <PriorityFlag priority={ticket.priority} />
-                          </div>
+                          {isOverdue ? (
+                            <span className="mt-1 inline-flex rounded-full bg-[var(--color-warning-container)] px-2 py-0.5 text-[10px] font-semibold text-[var(--color-warning)]">
+                              Quá hạn
+                            </span>
+                          ) : null}
                         </div>
                       </div>
                     </td>
@@ -139,11 +138,6 @@ export function TicketListPanel({
                     <td className="px-3 py-3 align-top">
                       <StatusPill status={ticket.status} compact />
                     </td>
-                    <td className="px-3 py-3 align-top">
-                      <p className="line-clamp-2 text-[var(--color-on-surface)]">
-                        {ticket.nextAction || statusMeta[ticket.status].nextStep}
-                      </p>
-                    </td>
                     <td className="px-3 py-3 text-right align-top">
                       <ActionButton icon={Eye} onClick={() => onSelectTicket(ticket.id)}>
                         Xem
@@ -158,4 +152,12 @@ export function TicketListPanel({
       )}
     </section>
   );
+}
+
+function isTicketOverdue(ticket: ReturnRoomTicket) {
+  const expectedDate = new Date(ticket.room.expectedReturnDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  expectedDate.setHours(0, 0, 0, 0);
+  return ticket.status !== "completed" && expectedDate.getTime() < today.getTime();
 }

@@ -1,4 +1,10 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  confirmReturnRoomCustomerResponse,
+  createReconciliationTicket,
+  finalizeReturnRoomStatus,
+} from "@/actions/check-in-contracts";
 import { returnRoomTicketToastMessages } from "@/components/feedback/toastMessages";
 import {
   countTicketsByQueue,
@@ -16,35 +22,50 @@ import {
   getEffectiveSelectedTicketId,
   getSelectedTicket,
 } from "../logic/ticketSelection";
-import {
-  applyCustomerAgreement,
-  applyCustomerDisagreement,
-  applyReconciliationSubmission,
-  applyRoomBedUpdateSubmission,
-} from "../logic/ticketWorkflowActions";
 import type { PanelMode } from "../types";
 import type { ReconciliationSubmission } from "../WorkflowPanels";
 
 export function useReturnRoomTicketsWorkspace(
   initialTickets: ReturnRoomTicket[],
 ) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const urlTicketId = searchParams.get("id");
+
   const [tickets, setTickets] = useState(initialTickets);
   const [filters, setFilters] = useState(defaultFilterState);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(
-    initialTickets[0]?.id ?? null,
+    urlTicketId ?? initialTickets[0]?.id ?? null,
   );
   const [panelMode, setPanelMode] = useState<PanelMode>("detail");
   const [notice, setNotice] = useState<string | null>(null);
+  const [noticeVariant, setNoticeVariant] = useState<"success" | "error">(
+    "success",
+  );
   const [roomBedModalOpen, setRoomBedModalOpen] = useState(false);
+  const [isSubmittingWorkflow, startWorkflowTransition] = useTransition();
+
+  // Sync state back to URL
+  function updateUrl(ticketId: string | null) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (ticketId) {
+      params.set("id", ticketId);
+    } else {
+      params.delete("id");
+    }
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  }
 
   const visibleTickets = useMemo(
     () => filterTickets(tickets, filters),
     [filters, tickets],
   );
   const queueCounts = useMemo(() => countTicketsByQueue(tickets), [tickets]);
+  const requestedSelectedTicketId = urlTicketId ?? selectedTicketId;
   const effectiveSelectedTicketId = useMemo(
-    () => getEffectiveSelectedTicketId(visibleTickets, selectedTicketId),
-    [selectedTicketId, visibleTickets],
+    () => getEffectiveSelectedTicketId(visibleTickets, requestedSelectedTicketId),
+    [requestedSelectedTicketId, visibleTickets],
   );
   const selectedTicket = useMemo(
     () => getSelectedTicket(tickets, effectiveSelectedTicketId),
@@ -78,6 +99,7 @@ export function useReturnRoomTicketsWorkspace(
 
   function selectTicket(ticketId: string) {
     setSelectedTicketId(ticketId);
+    updateUrl(ticketId);
     showDetailPanel();
     closeRoomBedModal();
     setNotice(null);
@@ -99,47 +121,96 @@ export function useReturnRoomTicketsWorkspace(
     setRoomBedModalOpen(false);
   }
 
-  function updateSelectedTicket(
-    updater: (ticket: ReturnRoomTicket) => ReturnRoomTicket,
-  ) {
-    if (!selectedTicket) {
-      return;
-    }
-
+  function replaceTicket(updatedTicket: ReturnRoomTicket) {
     setTickets((currentTickets) =>
       currentTickets.map((ticket) =>
-        ticket.id === selectedTicket.id ? updater(ticket) : ticket,
+        ticket.id === updatedTicket.id ? updatedTicket : ticket,
       ),
     );
   }
 
   function completeReconciliation(submission: ReconciliationSubmission) {
-    const completedAt = getToday();
-    updateSelectedTicket((ticket) =>
-      applyReconciliationSubmission(ticket, submission, completedAt),
-    );
-    showDetailPanel();
-    setNotice(returnRoomTicketToastMessages.reconciliationCompleted);
+    if (!selectedTicket) {
+      return;
+    }
+
+    startWorkflowTransition(async () => {
+      const result = await createReconciliationTicket(selectedTicket.id, {
+        hygieneStatus: submission.hygieneStatus,
+        keycardStatus: submission.keycardStatus,
+        hasDamageOrLoss: submission.hasDamageOrLoss,
+        damageDescription: submission.damageDescription,
+        estimatedCost: submission.estimatedCost,
+        managerNotes: submission.managerNotes,
+      });
+
+      if (!result.success || !result.ticket) {
+        setNoticeVariant("error");
+        setNotice(result.error ?? "Không thể lập phiếu thanh toán.");
+        return;
+      }
+
+      replaceTicket(result.ticket);
+      showDetailPanel();
+      setNoticeVariant("success");
+      setNotice(returnRoomTicketToastMessages.reconciliationCompleted);
+    });
   }
 
   function markCustomerAgreed() {
-    updateSelectedTicket((ticket) => applyCustomerAgreement(ticket, getToday()));
-    setNotice(returnRoomTicketToastMessages.customerAgreed);
+    if (!selectedTicket) return;
+
+    startWorkflowTransition(async () => {
+      const result = await confirmReturnRoomCustomerResponse(selectedTicket.id, true);
+
+      if (!result.success || !result.ticket) {
+        setNoticeVariant("error");
+        setNotice(result.error ?? "Không thể xác nhận đồng ý.");
+        return;
+      }
+
+      replaceTicket(result.ticket);
+      setNoticeVariant("success");
+      setNotice(returnRoomTicketToastMessages.customerAgreed);
+    });
   }
 
   function markCustomerDisagreed() {
-    updateSelectedTicket(applyCustomerDisagreement);
-    setNotice(returnRoomTicketToastMessages.customerDisagreed);
+    if (!selectedTicket) return;
+
+    startWorkflowTransition(async () => {
+      const result = await confirmReturnRoomCustomerResponse(selectedTicket.id, false);
+
+      if (!result.success || !result.ticket) {
+        setNoticeVariant("error");
+        setNotice(result.error ?? "Không thể xác nhận không đồng ý.");
+        return;
+      }
+
+      replaceTicket(result.ticket);
+      setNoticeVariant("success");
+      setNotice(returnRoomTicketToastMessages.customerDisagreed);
+    });
   }
 
   function completeRoomBedUpdate(submission: RoomBedUpdateSubmission) {
-    const completedAt = getToday();
-    updateSelectedTicket((ticket) =>
-      applyRoomBedUpdateSubmission(ticket, submission, completedAt),
-    );
-    closeRoomBedModal();
-    showDetailPanel();
-    setNotice(returnRoomTicketToastMessages.roomUpdateCompleted);
+    if (!selectedTicket) return;
+
+    startWorkflowTransition(async () => {
+      const result = await finalizeReturnRoomStatus(selectedTicket.id, submission);
+
+      if (!result.success || !result.ticket) {
+        setNoticeVariant("error");
+        setNotice(result.error ?? "Không thể cập nhật trạng thái phòng.");
+        return;
+      }
+
+      replaceTicket(result.ticket);
+      closeRoomBedModal();
+      showDetailPanel();
+      setNoticeVariant("success");
+      setNotice(returnRoomTicketToastMessages.roomUpdateCompleted);
+    });
   }
 
   return {
@@ -150,7 +221,9 @@ export function useReturnRoomTicketsWorkspace(
     effectiveSelectedTicketId,
     activePanelMode,
     notice,
+    noticeVariant,
     roomBedModalOpen,
+    isSubmittingReconciliation: isSubmittingWorkflow,
     setQueue,
     setSearch,
     setSort,
@@ -165,8 +238,4 @@ export function useReturnRoomTicketsWorkspace(
     markCustomerDisagreed,
     completeRoomBedUpdate,
   };
-}
-
-function getToday() {
-  return new Date().toISOString().slice(0, 10);
 }

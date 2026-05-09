@@ -1,4 +1,4 @@
-import { ArrowLeft, ClipboardCheck, FileSignature } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, ExternalLink, FileSignature, Undo2 } from "lucide-react";
 import type { CheckInContractRecord } from "@/lib/check-in-contracts/types";
 import {
   formatContractedBeds,
@@ -18,6 +18,7 @@ type CheckInActionPanelProps = {
   record: CheckInContractRecord | null;
   onBackToList: () => void;
   onStartContractForm: () => void;
+  onOpenReturnTicketModal: () => void;
 };
 
 const roomStatusLabel: Record<CheckInContractRecord["room"]["roomStatus"], string> = {
@@ -36,6 +37,7 @@ export function CheckInActionPanel({
   record,
   onBackToList,
   onStartContractForm,
+  onOpenReturnTicketModal,
 }: CheckInActionPanelProps) {
   if (!record) {
     return (
@@ -57,6 +59,8 @@ export function CheckInActionPanel({
   }
 
   const canCreateContract = record.status === "waitingCheckIn";
+  const hasActiveContract = record.status === "contractCreated" && record.contract?.status === "active";
+  const existingReturnTicket = record.contract?.returnTicket;
   const rentalType = getContractRentalType(record);
 
   return (
@@ -205,6 +209,22 @@ export function CheckInActionPanel({
         >
           Lập hợp đồng
         </ActionButton>
+        {hasActiveContract ? (
+          existingReturnTicket ? (
+            <ActionButton
+              icon={ExternalLink}
+              onClick={() => {
+                window.location.href = `/dashboard/return-room-tickets?id=${existingReturnTicket.id}`;
+              }}
+            >
+              Xem phiếu trả phòng
+            </ActionButton>
+          ) : (
+            <ActionButton icon={Undo2} variant="primary" onClick={onOpenReturnTicketModal}>
+              Tạo phiếu trả phòng
+            </ActionButton>
+          )
+        ) : null}
         {!canCreateContract ? (
           <ActionButton icon={ClipboardCheck} disabled>
             Đã xử lý

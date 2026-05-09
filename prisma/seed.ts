@@ -13,6 +13,9 @@ async function main() {
   console.log('Đang dọn dẹp dữ liệu cũ (Xóa rác)...');
 
   // Xóa theo thứ tự từ bảng con đến bảng cha để tránh lỗi khóa ngoại
+  await prisma.contractOccupant.deleteMany();
+  await prisma.contractBedDetail.deleteMany();
+  await prisma.contract.deleteMany();
   await prisma.payment.deleteMany();
   await prisma.depositDetail.deleteMany();
   await prisma.depositTicket.deleteMany();

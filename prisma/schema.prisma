@@ -35,6 +35,7 @@ model User {
   confirmedDeposits     DepositTicket[]      @relation("DepositConfirmer")
   payments              Payment[]            @relation("PaymentStaff")
   createdContracts      Contract[]           @relation("ContractCreator")
+  createdReturnRoomTickets ReturnRoomTicket[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -51,6 +52,7 @@ model Branch {
   appointments  ViewingAppointment[]
   deposits      DepositTicket[]
   contracts     Contract[]
+  returnRoomTickets ReturnRoomTicket[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -90,6 +92,7 @@ model Bed {
 
   depositDetails DepositDetail[]
   contractDetails ContractBedDetail[]
+  returnUpdates ReturnRoomTicketBedUpdate[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -216,9 +219,16 @@ model Payment {
   
   depositTicketId       String?
   depositTicket         DepositTicket? @relation(fields: [depositTicketId], references: [id])
+
+  contractId            String?
+  contract              Contract? @relation(fields: [contractId], references: [id])
+
+  reconciliationTicketId String?
+  reconciliationTicket   ReconciliationTicket? @relation(fields: [reconciliationTicketId], references: [id])
   
   paymentType           String         // DEPOSIT, RENT, SERVICE, REFUND
   documentType          String?        // RECEIPT, BANK_TRANSFER, INVOICE
+  direction             String?        // IN, OUT
   amount                Float          // Số tiền
   paymentMethod         String?        // CASH, TRANSFER
   paymentTime           DateTime?      // Thời điểm thanh toán
@@ -260,6 +270,25 @@ enum OccupantGender {
   OTHER
 }
 
+enum ReturnRoomTicketStatus {
+  PENDING_MANAGER_REVIEW
+  RECONCILING
+  WAITING_ACCOUNTING
+  ACCOUNTING_RESULT_READY
+  WAITING_CUSTOMER_CONFIRMATION
+  CUSTOMER_CONFIRMED
+  NEEDS_RECHECK
+  WAITING_DEPOSIT_REFUND
+  WAITING_EXTRA_PAYMENT
+  COMPLETED
+}
+
+enum ReturnTicketPriority {
+  NORMAL
+  URGENT
+  OVERDUE
+}
+
 // Hợp đồng thuê
 model Contract {
   id              String   @id @default(uuid())
@@ -299,6 +328,8 @@ model Contract {
   // Relations
   bedDetails      ContractBedDetail[]
   occupants       ContractOccupant[]
+  payments        Payment[]
+  returnRoomTickets ReturnRoomTicket[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -340,4 +371,110 @@ model ContractOccupant {
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+// ============================================================================
+// RETURN ROOM TICKET MODELS - Trả phòng & thanh lý
+// ============================================================================
+
+model ReturnRoomTicket {
+  id        String @id @default(uuid())
+  code      String @unique
+
+  contractId String
+  contract   Contract @relation(fields: [contractId], references: [id])
+
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id])
+
+  status ReturnRoomTicketStatus @default(PENDING_MANAGER_REVIEW)
+
+  expectedReturnDate DateTime
+  actualReturnDate   DateTime?
+
+  saleNote String?
+
+  customerConfirmationStatus String @default("NOT_STARTED")
+  customerConfirmedAt        DateTime?
+  customerDisagreementReason String?
+
+  roomFinalizationStatus String @default("NOT_STARTED")
+  roomFinalizationNote   String?
+  roomFinalizedAt        DateTime?
+  roomStatusAfterCheckout String?
+
+  reconciliation ReconciliationTicket?
+  bedUpdates     ReturnRoomTicketBedUpdate[]
+
+  createdById String?
+  createdBy   User? @relation(fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ReconciliationTicket {
+  id   String @id @default(uuid())
+  code String @unique
+
+  returnRoomTicketId String @unique
+  returnRoomTicket   ReturnRoomTicket @relation(fields: [returnRoomTicketId], references: [id])
+
+  status String @default("DRAFT")
+
+  hygieneStatus   String?
+  keycardStatus   String?
+  hasDamageOrLoss Boolean @default(false)
+  managerNotes    String?
+
+  depositAmount   Float?
+  refundRate      Float?
+  baseRefund      Float?
+  totalDeductions Float?
+  finalAmount     Float?
+  resultDirection String?
+  conclusion      String?
+
+  details ReconciliationDetail[]
+  payments Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ReconciliationDetail {
+  id String @id @default(uuid())
+
+  reconciliationTicketId String
+  reconciliationTicket   ReconciliationTicket @relation(fields: [reconciliationTicketId], references: [id])
+
+  source      String
+  description String
+  quantity    Int    @default(1)
+  unitPrice   Float?
+  amount      Float
+  note        String?
+  status      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ReturnRoomTicketBedUpdate {
+  id String @id @default(uuid())
+
+  returnRoomTicketId String
+  returnRoomTicket   ReturnRoomTicket @relation(fields: [returnRoomTicketId], references: [id])
+
+  bedId String
+  bed   Bed @relation(fields: [bedId], references: [id])
+
+  statusBefore     String
+  statusAfter      String
+  inspectionResult String?
+  note             String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([returnRoomTicketId, bedId])
 }

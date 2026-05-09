@@ -25,7 +25,9 @@ export function ReturnRoomTicketsWorkspace({
     effectiveSelectedTicketId,
     activePanelMode,
     notice,
+    noticeVariant,
     roomBedModalOpen,
+    isSubmittingReconciliation,
     setQueue,
     setSearch,
     setSort,
@@ -67,7 +69,7 @@ export function ReturnRoomTicketsWorkspace({
         />
       </header>
 
-      {notice ? <Toast message={notice} variant="success" /> : null}
+      {notice ? <Toast message={notice} variant={noticeVariant} /> : null}
 
       <section className="grid flex-1 grid-cols-1 gap-3 xl:min-h-0 xl:grid-cols-[1.3fr_1fr]">
         <TicketListPanel
@@ -86,6 +88,7 @@ export function ReturnRoomTicketsWorkspace({
             ticket={selectedTicket}
             onCancel={showDetailPanel}
             onSubmit={completeReconciliation}
+            isSubmitting={isSubmittingReconciliation}
           />
         ) : null}
 

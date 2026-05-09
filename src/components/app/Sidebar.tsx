@@ -5,11 +5,9 @@ import {
   Clock3,
   FileSignature,
   FileText,
-  Grid2X2,
   LogOut,
   Monitor,
   ReceiptText,
-  ShieldCheck,
   UserPlus,
   type LucideIcon,
 } from "lucide-react";
@@ -40,18 +38,6 @@ const navigationSections: NavigationSection[] = [
   {
     title: "TỔNG QUAN",
     items: [
-      {
-        label: "Dashboard",
-        href: "/dashboard",
-        icon: Grid2X2,
-        excludePaths: [
-          "/dashboard/payment-slips",
-          "/dashboard/return-room-tickets",
-          "/dashboard/registrations",
-          "/dashboard/appointments",
-          "/dashboard/check-in-contracts",
-        ],
-      },
     ],
   },
   {

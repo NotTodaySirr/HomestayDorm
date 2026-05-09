@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, CheckCircle2, FilePlus2, Save, X, RotateCcw, PenSquare, Printer } from "lucide-react";
+import { ArrowLeft, CheckCircle2, FilePlus2, Save, X, Printer } from "lucide-react";
 import Link from "next/link";
 import { Toast } from "@/components/feedback/Toast";
 import {
@@ -11,9 +11,7 @@ import { usePaymentSlipDetail } from "./hooks/usePaymentSlipDetail";
 import type {
   PaymentCalculation,
   PaymentSlip,
-  PaymentSlipStatus,
   RefundPolicyCode,
-  PaymentTransaction,
 } from "@/lib/payment-slips/types";
 import { cx, FieldRow, formatCurrency, Section, StatusPill } from "./ui";
 import { RecordTransactionModal } from "./RecordTransactionModal";
@@ -50,14 +48,14 @@ export function PaymentSlipDetailView({ slip }: PaymentSlipDetailViewProps) {
   const {
     calculation,
     status,
-    customerConfirmed,
     notice,
     showConfirmModal,
     isTransactionModalOpen,
     transaction,
     totals,
     isEditable,
-    steps,
+    isConfirmingCalculation,
+    isUpdatingCustomerResponse,
   } = state;
   const {
     setCalculation,
@@ -66,9 +64,8 @@ export function PaymentSlipDetailView({ slip }: PaymentSlipDetailViewProps) {
     setIsTransactionModalOpen,
     updateMoneyField,
     handleConfirmCalculation,
-    simulateCustomerConfirm,
-    simulateCustomerReject,
-    createExtraPaymentSlip,
+    confirmCustomerAgreement,
+    rejectCustomerAgreement,
     handleTransactionSubmit,
     confirmNoTransaction,
   } = actions;
@@ -99,43 +96,6 @@ export function PaymentSlipDetailView({ slip }: PaymentSlipDetailViewProps) {
 
       <div className="flex-1 overflow-hidden p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-[70%_30%] gap-6">
         <div className="flex flex-col gap-6 overflow-y-auto pr-2 pb-12">
-          <Section title="TIẾN TRÌNH XỬ LÝ">
-             <div className="flex items-start justify-between gap-2 text-[12px] py-4">
-               {steps.map((step, index) => {
-                 const isCurrent = index === steps.findIndex(s => !s.completed);
-                 return (
-                   <div key={index} className="flex flex-col items-center gap-2 relative flex-1">
-                     {index < steps.length - 1 && (
-                       <div className={cx(
-                         "absolute top-3 left-[50%] w-full h-[2px]",
-                         step.completed && steps[index+1]?.completed ? "bg-[var(--color-success)]" : "bg-[var(--color-border)]"
-                       )} />
-                     )}
-                     
-                     <div className="relative z-10 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-surface)]">
-                       {step.completed ? (
-                          <CheckCircle2 className="h-6 w-6 text-[var(--color-success)] bg-white rounded-full" />
-                       ) : (
-                          <div className={cx(
-                            "h-3 w-3 rounded-full border-[1.5px]",
-                            isCurrent 
-                              ? "border-[var(--color-primary)] bg-[var(--color-primary)] shadow-[0_0_0_3px_var(--color-primary-container)]" 
-                              : "border-[var(--color-border)] bg-[var(--color-surface)]"
-                          )} />
-                       )}
-                     </div>
-                     <span className={cx(
-                       "font-medium text-center leading-[1.2]",
-                       step.completed ? "text-[var(--color-on-surface)]" : isCurrent ? "text-[var(--color-primary)] font-bold" : "text-[var(--color-on-surface-secondary)]"
-                     )}>
-                       {step.label}
-                     </span>
-                   </div>
-                 );
-               })}
-             </div>
-          </Section>
-
           <Section title="1. THÔNG TIN HỢP ĐỒNG & CỌC">
             <dl>
               <FieldRow label="Mã HĐ" value={slip.contract.code} />
@@ -212,7 +172,7 @@ export function PaymentSlipDetailView({ slip }: PaymentSlipDetailViewProps) {
                           value={calculation[field.key]}
                           disabled={!isEditable}
                           onChange={(event) => updateMoneyField(field.key, event.target.value)}
-                          className="w-32 rounded-[var(--radius-sm)] border border-[var(--color-border)] px-3 py-1.5 text-right outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] disabled:bg-[var(--color-secondary)] disabled:text-[var(--color-on-surface-secondary)]"
+                          className="w-32 rounded-[var(--radius-sm)] border border-[var(--color-border)] px-3 py-1.5 text-right outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-1 focus:ring-[var(--color-primary)] disabled:bg-[var(--color-secondary)] disabled:text-[var(--color-on-surface-secondary)]"
                         />
                       </label>
                     ))}
@@ -233,7 +193,7 @@ export function PaymentSlipDetailView({ slip }: PaymentSlipDetailViewProps) {
                           value={calculation[field.key]}
                           disabled={!isEditable}
                           onChange={(event) => updateMoneyField(field.key, event.target.value)}
-                          className="w-32 rounded-[var(--radius-sm)] border border-[var(--color-border)] px-3 py-1.5 text-right outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] disabled:bg-[var(--color-secondary)] disabled:text-[var(--color-on-surface-secondary)]"
+                          className="w-32 rounded-[var(--radius-sm)] border border-[var(--color-border)] px-3 py-1.5 text-right outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-1 focus:ring-[var(--color-primary)] disabled:bg-[var(--color-secondary)] disabled:text-[var(--color-on-surface-secondary)]"
                         />
                       </label>
                     ))}
@@ -253,7 +213,7 @@ export function PaymentSlipDetailView({ slip }: PaymentSlipDetailViewProps) {
                         value={calculation.adjustment}
                         disabled={!isEditable}
                         onChange={(event) => updateMoneyField("adjustment", event.target.value)}
-                        className="rounded-[var(--radius-sm)] border border-[var(--color-border)] px-3 py-2 outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] disabled:bg-[var(--color-secondary)]"
+                        className="rounded-[var(--radius-sm)] border border-[var(--color-border)] px-3 py-2 outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-1 focus:ring-[var(--color-primary)] disabled:bg-[var(--color-secondary)]"
                      />
                    </label>
                    <label className="flex flex-col gap-1 text-[13px]">
@@ -269,7 +229,7 @@ export function PaymentSlipDetailView({ slip }: PaymentSlipDetailViewProps) {
                         }))
                       }
                       className={cx(
-                        "rounded-[var(--radius-sm)] border border-[var(--color-border)] px-3 py-2 outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] disabled:bg-[var(--color-secondary)]",
+                        "rounded-[var(--radius-sm)] border border-[var(--color-border)] px-3 py-2 outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-1 focus:ring-[var(--color-primary)] disabled:bg-[var(--color-secondary)]",
                         calculation.adjustment !== 0 && !calculation.adjustmentReason.trim() && isEditable && "border-[var(--color-error)] focus:border-[var(--color-error)] focus:ring-[var(--color-error)]"
                       )}
                     />
@@ -355,7 +315,11 @@ export function PaymentSlipDetailView({ slip }: PaymentSlipDetailViewProps) {
           <div className="flex flex-col gap-3">
             {(status === "pendingAccounting" || status === "needReview") && (
               <>
-                <ActionButton icon={Save} onClick={() => setShowConfirmModal(true)} disabled={calculation.adjustment !== 0 && !calculation.adjustmentReason.trim()}>
+                <ActionButton
+                  icon={Save}
+                  onClick={() => setShowConfirmModal(true)}
+                  disabled={calculation.adjustment !== 0 && !calculation.adjustmentReason.trim()}
+                >
                   Xác nhận kết quả tính toán
                 </ActionButton>
                 <ActionButton icon={Save} variant="secondary">Lưu nháp</ActionButton>
@@ -367,60 +331,97 @@ export function PaymentSlipDetailView({ slip }: PaymentSlipDetailViewProps) {
                 <div className="rounded-[var(--radius-sm)] bg-[var(--color-warning-container)] p-3 text-[13px] text-[var(--color-warning)] text-center font-medium leading-relaxed">
                   Kết quả đã được xác nhận.<br/>Đang chờ khách phản hồi.
                 </div>
-                <ActionButton icon={PenSquare} variant="secondary" onClick={() => setStatus("pendingAccounting")}>
+                <ActionButton
+                  icon={CheckCircle2}
+                  onClick={confirmCustomerAgreement}
+                  disabled={isUpdatingCustomerResponse}
+                >
+                  {isUpdatingCustomerResponse ? "Đang ghi nhận..." : "Khách đồng ý"}
+                </ActionButton>
+                <ActionButton
+                  icon={X}
+                  variant="danger"
+                  onClick={rejectCustomerAgreement}
+                  disabled={isUpdatingCustomerResponse}
+                >
+                  Khách không đồng ý
+                </ActionButton>
+                <ActionButton variant="secondary" onClick={() => setStatus("pendingAccounting")}>
                   Chỉnh sửa kết quả
                 </ActionButton>
-                
-                <div className="mt-2 flex flex-col gap-2 border-t border-[var(--color-border)] pt-4">
-                  <p className="text-[11px] font-bold uppercase text-[var(--color-on-surface-secondary)] text-center">Công cụ Test/Demo</p>
-                  <ActionButton icon={CheckCircle2} variant="primary" onClick={simulateCustomerConfirm}>
-                    Mô phỏng: Khách đồng ý
-                  </ActionButton>
-                  <ActionButton icon={X} variant="danger" onClick={simulateCustomerReject}>
-                    Mô phỏng: Khách từ chối
-                  </ActionButton>
-                </div>
               </>
             )}
 
             {status === "customerConfirmed" && totals.finalAmount > 0 && (
-              <ActionButton icon={FilePlus2} onClick={() => setStatus("waitingDepositRefund")}>
-                Lập phiếu hoàn cọc
+              <ActionButton 
+                icon={CheckCircle2} 
+                onClick={() => setIsTransactionModalOpen(true)}
+                disabled={isUpdatingCustomerResponse}
+              >
+                Ghi nhận hoàn cọc
               </ActionButton>
             )}
 
             {status === "waitingDepositRefund" && (
-              <ActionButton icon={CheckCircle2} onClick={() => setIsTransactionModalOpen(true)}>
+              <ActionButton 
+                icon={CheckCircle2} 
+                onClick={() => setIsTransactionModalOpen(true)}
+                disabled={isUpdatingCustomerResponse}
+              >
                 Ghi nhận đã hoàn cọc
               </ActionButton>
             )}
 
             {status === "customerConfirmed" && totals.finalAmount < 0 && (
-              <ActionButton icon={FilePlus2} variant="danger" onClick={createExtraPaymentSlip}>
+              <ActionButton 
+                icon={FilePlus2} 
+                variant="danger" 
+                onClick={() => setIsTransactionModalOpen(true)}
+                disabled={isUpdatingCustomerResponse}
+              >
                 Lập phiếu thanh toán thêm
               </ActionButton>
             )}
 
             {status === "waitingExtraPayment" && (
               <>
-                <ActionButton icon={CheckCircle2} variant="primary" onClick={() => setIsTransactionModalOpen(true)}>
+                <ActionButton 
+                  icon={CheckCircle2} 
+                  variant="primary" 
+                  onClick={() => setIsTransactionModalOpen(true)}
+                  disabled={isUpdatingCustomerResponse}
+                >
                   Ghi nhận đã thu đủ
                 </ActionButton>
-                <ActionButton icon={CheckCircle2} variant="secondary" onClick={() => setStatus("partiallyPaid")}>
+                <ActionButton 
+                  icon={CheckCircle2} 
+                  variant="secondary" 
+                  onClick={() => setStatus("partiallyPaid")}
+                  disabled={isUpdatingCustomerResponse}
+                >
                   Thanh toán một phần
                 </ActionButton>
               </>
             )}
 
             {status === "partiallyPaid" && (
-               <ActionButton icon={CheckCircle2} variant="primary" onClick={() => setIsTransactionModalOpen(true)}>
+               <ActionButton 
+                 icon={CheckCircle2} 
+                 variant="primary" 
+                 onClick={() => setIsTransactionModalOpen(true)}
+                 disabled={isUpdatingCustomerResponse}
+               >
                   Ghi nhận đã thu đủ
                </ActionButton>
             )}
 
             {status === "customerConfirmed" && totals.finalAmount === 0 && (
-              <ActionButton icon={CheckCircle2} onClick={confirmNoTransaction}>
-                Xác nhận không phát sinh giao dịch
+              <ActionButton 
+                icon={CheckCircle2} 
+                onClick={confirmNoTransaction}
+                disabled={isUpdatingCustomerResponse}
+              >
+                {isUpdatingCustomerResponse ? "Đang xử lý..." : "Xác nhận không phát sinh giao dịch"}
               </ActionButton>
             )}
 
@@ -470,7 +471,14 @@ export function PaymentSlipDetailView({ slip }: PaymentSlipDetailViewProps) {
             </div>
             <div className="border-t border-[var(--color-border)] p-5 flex justify-end gap-3 bg-[#FAFBFF]">
                <ActionButton variant="secondary" onClick={() => setShowConfirmModal(false)}>Kiểm tra lại</ActionButton>
-               <ActionButton variant="primary" icon={CheckCircle2} onClick={handleConfirmCalculation}>Xác nhận</ActionButton>
+               <ActionButton
+                 variant="primary"
+                 icon={CheckCircle2}
+                 onClick={handleConfirmCalculation}
+                 disabled={isConfirmingCalculation}
+               >
+                 {isConfirmingCalculation ? "Đang lưu..." : "Xác nhận"}
+               </ActionButton>
             </div>
           </div>
         </div>

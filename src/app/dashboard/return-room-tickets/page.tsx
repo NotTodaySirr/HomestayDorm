@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
+import { getReturnRoomTickets } from "@/actions/check-in-contracts";
 import { ReturnRoomTicketsWorkspace } from "@/components/return-room-tickets/ReturnRoomTicketsWorkspace";
-import { returnRoomTickets } from "@/lib/return-room-tickets/mock-data";
 
 export const metadata: Metadata = {
   title: "Quản lý phiếu trả phòng | HomestayDorm",
 };
 
-export default function ReturnRoomTicketsPage() {
-  return <ReturnRoomTicketsWorkspace initialTickets={returnRoomTickets} />;
+export default async function ReturnRoomTicketsPage() {
+  const tickets = await getReturnRoomTickets();
+
+  return <ReturnRoomTicketsWorkspace initialTickets={tickets} />;
 }

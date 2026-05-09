@@ -125,6 +125,7 @@ export function TicketDetailPanel({
         <DetailSection title="Trạng thái xử lý">
           <dl>
             <FieldRow label="Phiếu trả phòng" value={meta.label} />
+            <FieldRow label="Bước xử lý tiếp theo" value={meta.nextStep} />
             <FieldRow
               label="Phiếu thanh toán"
               value={ticket.reconciliation?.status ?? "Chưa lập"}

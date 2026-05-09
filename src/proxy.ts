@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { decrypt, isAuthBypassEnabled } from "@/lib/session";
+import { decrypt, isAuthBypassEnabled } from "@/lib/session-token";
 
 const protectedRoutes = ["/dashboard", "/profile"];
 const publicRoutes = ["/login", "/signup", "/"];
+const DEFAULT_AUTHENTICATED_ROUTE = "/dashboard";
 
 function isRouteMatch(path: string, routes: string[]) {
   return routes.some((route) => path === route || path.startsWith(`${route}/`));
+}
+
+function redirectToLogin(req: NextRequest) {
+  const response = NextResponse.redirect(new URL("/login", req.nextUrl));
+  response.cookies.delete("session");
+  return response;
 }
 
 export default async function proxy(req: NextRequest) {
@@ -15,18 +22,23 @@ export default async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const isProtectedRoute = isRouteMatch(path, protectedRoutes);
   const isPublicRoute = isRouteMatch(path, publicRoutes);
+  const isProtectedRoute = !isPublicRoute || isRouteMatch(path, protectedRoutes);
 
   const sessionCookie = req.cookies.get("session")?.value;
   const session = await decrypt(sessionCookie);
+  const hasValidSession = Boolean(session?.userId);
 
-  if (isProtectedRoute && !session?.userId) {
-    return NextResponse.redirect(new URL("/login", req.nextUrl));
+  if (path === "/" && !hasValidSession) {
+    return redirectToLogin(req);
   }
 
-  if (isPublicRoute && session?.userId && !path.startsWith("/dashboard")) {
-    return NextResponse.redirect(new URL("/dashboard", req.nextUrl));
+  if (isProtectedRoute && !hasValidSession) {
+    return redirectToLogin(req);
+  }
+
+  if (isPublicRoute && hasValidSession && !path.startsWith("/dashboard")) {
+    return NextResponse.redirect(new URL(DEFAULT_AUTHENTICATED_ROUTE, req.nextUrl));
   }
 
   return NextResponse.next();

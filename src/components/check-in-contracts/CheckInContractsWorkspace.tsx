@@ -6,6 +6,7 @@ import { CheckInActionPanel } from "./CheckInActionPanel";
 import { ContractFormPanel } from "./ContractFormPanel";
 import { ContractListPanel } from "./ContractListPanel";
 import { ContractToolbar } from "./ContractToolbar";
+import { CreateReturnRoomTicketModal } from "./CreateReturnRoomTicketModal";
 import { useCheckInContractsWorkspace } from "./hooks/useCheckInContractsWorkspace";
 
 type CheckInContractsWorkspaceProps = {
@@ -34,6 +35,9 @@ export function CheckInContractsWorkspace({
     cancelContractForm,
     updateDraft,
     completeContractCreation,
+    openReturnTicketModal,
+    closeReturnTicketModal,
+    completeReturnTicketCreation,
   } = actions;
 
   return (
@@ -85,9 +89,21 @@ export function CheckInContractsWorkspace({
             record={selectedRecord}
             onBackToList={showList}
             onStartContractForm={startContractForm}
+            onOpenReturnTicketModal={openReturnTicketModal}
           />
         ) : null}
       </section>
+
+      {selectedRecord ? (
+        <CreateReturnRoomTicketModal
+          isOpen={state.returnTicketModalOpen}
+          record={selectedRecord}
+          isSubmitting={state.returnTicketSubmitting}
+          error={state.returnTicketError}
+          onClose={closeReturnTicketModal}
+          onSubmit={completeReturnTicketCreation}
+        />
+      ) : null}
     </div>
   );
 }

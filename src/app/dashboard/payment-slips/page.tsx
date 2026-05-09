@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
+import { getPaymentSlips } from "@/actions/payment-slips";
 import { PaymentSlipsWorkspace } from "@/components/payment-slips/PaymentSlipsWorkspace";
-import { paymentSlips } from "@/lib/payment-slips/mock-data";
 import type { PaymentQueue } from "@/lib/payment-slips/types";
 
 export const metadata: Metadata = {
@@ -16,8 +16,9 @@ export default async function PaymentSlipsPage({
 }: PaymentSlipsPageProps) {
   const params = await searchParams;
   const queue = getQueue(params.queue);
+  const slips = await getPaymentSlips();
 
-  return <PaymentSlipsWorkspace initialSlips={paymentSlips} initialQueue={queue} />;
+  return <PaymentSlipsWorkspace initialSlips={slips} initialQueue={queue} />;
 }
 
 function getQueue(value: string | string[] | undefined): PaymentQueue {

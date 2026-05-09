@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
+import { getPaymentSlips } from "@/actions/payment-slips";
 import { FinancialReportView } from "@/components/payment-slips/FinancialReportView";
-import { paymentSlips } from "@/lib/payment-slips/mock-data";
 
 export const metadata: Metadata = {
   title: "Báo cáo tài chính | HomestayDorm",
 };
 
-export default function FinancialReportPage() {
-  return <FinancialReportView slips={paymentSlips} />;
+export default async function FinancialReportPage() {
+  const slips = await getPaymentSlips();
+
+  return <FinancialReportView slips={slips} />;
 }

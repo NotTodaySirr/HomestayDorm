@@ -41,10 +41,18 @@ export type CheckInContractRecord = {
   status: CheckInContractStatus;
   note: string;
   contract?: {
+    id: string;
     code: string;
     startDate: string;
+    endDate?: string;
     paymentCycle: PaymentCycle;
     rentalType: ContractRentalType;
+    status: "active" | "cancelled" | "ended";
+    returnTicket?: {
+      id: string;
+      code: string;
+      status: string;
+    };
   };
 };
 

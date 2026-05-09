@@ -1,11 +1,14 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
+import {
+  confirmNoTransaction,
+  confirmPaymentSlipCalculation,
+} from "@/actions/payment-slips";
 import { paymentSlipToastMessages } from "@/components/feedback/toastMessages";
 import {
   calculateBaseRefund,
   calculateFinalAmount,
   calculateTotalDeductions,
   getPaymentConclusion,
-  getSettlementStatus,
 } from "@/components/payment-slips/logic/calculation";
 import type {
   PaymentCalculation,
@@ -13,6 +16,12 @@ import type {
   PaymentSlipStatus,
   PaymentTransaction,
 } from "@/lib/payment-slips/types";
+
+type PaymentSlipMutationResult = {
+  success: boolean;
+  slip?: PaymentSlip;
+  error?: string;
+};
 
 export function usePaymentSlipDetail(slip: PaymentSlip) {
   const [calculation, setCalculation] = useState<PaymentCalculation>(slip.calculation);
@@ -23,6 +32,8 @@ export function usePaymentSlipDetail(slip: PaymentSlip) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   const [transaction, setTransaction] = useState<PaymentTransaction | undefined>(slip.transaction);
+  const [isConfirmingCalculation, startConfirmingCalculation] = useTransition();
+  const [isUpdatingCustomerResponse, startUpdatingCustomerResponse] = useTransition();
 
   const totals = useMemo(() => {
     const baseRefund = calculateBaseRefund(
@@ -45,6 +56,14 @@ export function usePaymentSlipDetail(slip: PaymentSlip) {
 
   const isEditable = status === "pendingAccounting" || status === "needReview";
 
+  function applyServerSlip(updatedSlip: PaymentSlip) {
+    setCalculation(updatedSlip.calculation);
+    setStatus(updatedSlip.status);
+    setCustomerConfirmed(updatedSlip.customerConfirmed);
+    setExtraPaymentSlip(updatedSlip.extraPaymentSlip);
+    setTransaction(updatedSlip.transaction);
+  }
+
   function updateMoneyField(key: keyof PaymentCalculation, value: string) {
     setCalculation((current) => ({
       ...current,
@@ -53,56 +72,135 @@ export function usePaymentSlipDetail(slip: PaymentSlip) {
   }
 
   function handleConfirmCalculation() {
-    setStatus("calculated");
-    setShowConfirmModal(false);
-    setNotice(paymentSlipToastMessages.calculationConfirmed);
-  }
+    startConfirmingCalculation(async () => {
+      const result = await confirmPaymentSlipCalculation(slip.id, calculation);
 
-  // Demo bypass functions
-  function simulateCustomerConfirm() {
-    setCustomerConfirmed(true);
-    setStatus(getSettlementStatus(totals.finalAmount));
-    setNotice("Mô phỏng: Khách đã đồng ý với kết quả đối soát.");
-  }
+      if (!result.success || !result.slip) {
+        setNotice(result.error ?? "Không thể xác nhận kết quả tính toán.");
+        return;
+      }
 
-  function simulateCustomerReject() {
-    setStatus("needReview");
-    setNotice("Mô phỏng: Khách không đồng ý, cần kiểm tra lại.");
-  }
-
-  function createExtraPaymentSlip() {
-    setExtraPaymentSlip({
-      created: true,
-      code: `PTTT-${slip.code}`,
-      createdAt: new Date().toISOString().slice(0, 10),
+      applyServerSlip(result.slip);
+      setShowConfirmModal(false);
+      setNotice(paymentSlipToastMessages.calculationConfirmed);
     });
-    setStatus("waitingExtraPayment");
-    setNotice(paymentSlipToastMessages.extraPaymentCreated);
+  }
+
+  function confirmCustomerAgreement() {
+    startUpdatingCustomerResponse(async () => {
+      const result = await submitCustomerResponse({
+        agreed: true,
+      });
+
+      if (!result.success || !result.slip) {
+        setNotice(result.error ?? "Không thể ghi nhận phản hồi của khách.");
+        return;
+      }
+
+      applyServerSlip(result.slip);
+      setNotice(paymentSlipToastMessages.customerConfirmed);
+    });
+  }
+
+  function rejectCustomerAgreement() {
+    startUpdatingCustomerResponse(async () => {
+      const result = await submitCustomerResponse({
+        agreed: false,
+      });
+
+      if (!result.success || !result.slip) {
+        setNotice(result.error ?? "Không thể ghi nhận phản hồi của khách.");
+        return;
+      }
+
+      applyServerSlip(result.slip);
+      setNotice(paymentSlipToastMessages.customerRejected);
+    });
+  }
+
+  async function submitCustomerResponse(input: {
+    agreed: boolean;
+    disagreementReason?: string;
+  }): Promise<PaymentSlipMutationResult> {
+    const response = await fetch(`/api/payment-slips/${slip.id}/customer-response`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    });
+
+    return response.json() as Promise<PaymentSlipMutationResult>;
   }
 
   function handleTransactionSubmit(newTransaction: PaymentTransaction) {
-    setTransaction(newTransaction);
-    setIsTransactionModalOpen(false);
-    if (newTransaction.type === "HOAN_COC") {
-      setStatus("completedRefund");
-      setNotice("Đã ghi nhận hoàn cọc thành công.");
-    } else {
-      setStatus("completedExtraPayment");
-      setNotice("Đã ghi nhận thanh toán thêm thành công.");
-    }
+    startUpdatingCustomerResponse(async () => {
+      const result = await submitPaymentTransaction(newTransaction);
+
+      if (!result.success || !result.slip) {
+        setNotice(result.error ?? "Không thể ghi nhận giao dịch.");
+        return;
+      }
+
+      applyServerSlip(result.slip);
+      setIsTransactionModalOpen(false);
+      setNotice(
+        newTransaction.type === "HOAN_COC"
+          ? "Đã ghi nhận hoàn cọc thành công."
+          : "Đã ghi nhận thanh toán thêm thành công.",
+      );
+    });
   }
 
-  function confirmNoTransaction() {
-    setStatus("noTransaction");
-    setNotice("Đã xác nhận không phát sinh giao dịch.");
+  async function submitPaymentTransaction(
+    transactionInput: PaymentTransaction,
+  ): Promise<PaymentSlipMutationResult> {
+    const response = await fetch(`/api/payment-slips/${slip.id}/transactions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(transactionInput),
+    });
+
+    return response.json() as Promise<PaymentSlipMutationResult>;
+  }
+
+  function handleConfirmNoTransaction() {
+    startUpdatingCustomerResponse(async () => {
+      const result = await confirmNoTransaction(slip.id);
+
+      if (!result.success || !result.slip) {
+        setNotice(result.error ?? "Không thể xác nhận không phát sinh giao dịch.");
+        return;
+      }
+
+      applyServerSlip(result.slip);
+      setNotice("Đã xác nhận không phát sinh giao dịch.");
+    });
   }
 
   const steps = [
     { label: "Quản lý đối soát", completed: true },
     { label: "Kế toán tính toán", completed: status !== "pendingAccounting" },
     { label: "Khách xác nhận", completed: customerConfirmed && status !== "needReview" },
-    { label: "Xử lý tiền", completed: status === "completedRefund" || status === "completedExtraPayment" || status === "noTransaction" || status === "waitingExtraPayment" || status === "partiallyPaid" || status === "waitingDepositRefund" },
-    { label: "Hoàn tất", completed: status === "completedRefund" || status === "completedExtraPayment" || status === "noTransaction" },
+    {
+      label: "Xử lý tiền",
+      completed:
+        status === "completedRefund" ||
+        status === "completedExtraPayment" ||
+        status === "noTransaction" ||
+        status === "waitingExtraPayment" ||
+        status === "partiallyPaid" ||
+        status === "waitingDepositRefund",
+    },
+    {
+      label: "Hoàn tất",
+      completed:
+        status === "completedRefund" ||
+        status === "completedExtraPayment" ||
+        status === "noTransaction",
+    },
   ];
 
   return {
@@ -118,6 +216,8 @@ export function usePaymentSlipDetail(slip: PaymentSlip) {
       totals,
       isEditable,
       steps,
+      isConfirmingCalculation,
+      isUpdatingCustomerResponse,
     },
     actions: {
       setCalculation,
@@ -126,11 +226,10 @@ export function usePaymentSlipDetail(slip: PaymentSlip) {
       setIsTransactionModalOpen,
       updateMoneyField,
       handleConfirmCalculation,
-      simulateCustomerConfirm,
-      simulateCustomerReject,
-      createExtraPaymentSlip,
+      confirmCustomerAgreement,
+      rejectCustomerAgreement,
       handleTransactionSubmit,
-      confirmNoTransaction,
+      confirmNoTransaction: handleConfirmNoTransaction,
     },
   };
 }
