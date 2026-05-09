@@ -23,6 +23,204 @@ model User {
   password  String
   name      String?
   role      Role     @default(USER)
+  
+  branchId  String?
+  branch    Branch?  @relation(fields: [branchId], references: [id])
+  
+  assignedAppointments  ViewingAppointment[] @relation("Assignee")
+  createdTickets        RegistrationTicket[] @relation("TicketCreator")
+  assignedTickets       RegistrationTicket[] @relation("TicketAssignee")
+  createdDeposits       DepositTicket[]      @relation("DepositCreator")
+  confirmedDeposits     DepositTicket[]      @relation("DepositConfirmer")
+  payments              Payment[]            @relation("PaymentStaff")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Branch {
+  id            String   @id @default(uuid())
+  code          String   @unique
+  name          String
+  
+  users         User[]
+  rooms         Room[]
+  registrations RegistrationTicket[]
+  appointments  ViewingAppointment[]
+  deposits      DepositTicket[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Room {
+  id            String   @id @default(uuid())
+  branchId      String
+  branch        Branch   @relation(fields: [branchId], references: [id])
+  
+  name          String
+  capacity      Int
+  occupancy     Int      @default(0)
+  price         Float          // Giá tham khảo (giá thực tế theo từng Giường)
+  status        String   @default("AVAILABLE") // AVAILABLE, FULL, MAINTENANCE
+
+  beds          Bed[]
+  appointments  ViewingAppointment[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  consultingTickets RegistrationTicket[] @relation("TicketToRoom")
+}
+
+// Giường — Đơn vị cho thuê nhỏ nhất (theo ERD)
+model Bed {
+  id            String   @id @default(uuid())
+  roomId        String
+  room          Room     @relation(fields: [roomId], references: [id])
+  
+  position      String           // VD: "Trên-1", "Dưới-1", "Trên-2", "Dưới-2"
+  price         Float            // Đơn giá thuê/tháng
+  status        String   @default("AVAILABLE") // AVAILABLE, OCCUPIED, DEPOSITED, MAINTENANCE
+
+  depositDetails DepositDetail[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model RegistrationTicket {
+  id                    String   @id @default(uuid())
+  branchId              String
+  branch                Branch   @relation(fields: [branchId], references: [id])
+  
+  // Customer Info (Khách thuê)
+  cccd                  String?    // Căn cước công dân
+  customerName          String
+  phoneNumber           String
+  email                 String?
+  dateOfBirth           DateTime?  // Ngày sinh
+  gender                String?
+  address               String?    // Địa chỉ thường trú
+  
+  // Rental Requirements (Yêu cầu thuê)
+  rentalType            String?    // Hình thức thuê: nguyen_can, o_ghep
+  roomTypePreference    String?    // Loại phòng mong muốn: ktx, studio, 1pn
+  headcount             Int?       // Số lượng người ở
+  preferredArea         String?    // Khu vực mong muốn
+  minPrice              Float?     // Mức giá tối thiểu
+  maxPrice              Float?     // Mức giá tối đa
+  rentalDuration        String?    // Thời hạn thuê: 6m, 12m
+  moveInDate            DateTime?  // Thời gian dự kiến vào ở
+  contactChannel        String?    // Kênh tiếp nhận: facebook, zalo, hotline, referral
+  additionalPreferences String?    // Tiêu chí ưu tiên khác
+  
+  // Status tracking
+  status                String   @default("DRAFT") // DRAFT, CONSULTING, WAITING_VIEW, WAITLIST, CANCELLED, COMPLETED
+  cancelReason          String?
+  
+  // Staff relations (Nhân viên)
+  createdById           String?
+  createdBy             User?    @relation("TicketCreator", fields: [createdById], references: [id])
+  assignedStaffId       String?
+  assignedStaff         User?    @relation("TicketAssignee", fields: [assignedStaffId], references: [id])
+  
+  appointments          ViewingAppointment[]
+  consultingRooms       Room[]               @relation("TicketToRoom")
+  deposits              DepositTicket[]
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model ViewingAppointment {
+  id                    String   @id @default(uuid())
+  registrationId        String
+  registration          RegistrationTicket @relation(fields: [registrationId], references: [id])
+  
+  branchId              String
+  branch                Branch   @relation(fields: [branchId], references: [id])
+  
+  roomId                String?
+  room                  Room?    @relation(fields: [roomId], references: [id])
+  
+  assigneeId            String?
+  assignee              User?    @relation("Assignee", fields: [assigneeId], references: [id])
+  
+  datetime              DateTime
+  meetingLocation       String?    // Nơi hẹn
+  status                String   @default("UPCOMING") // UPCOMING, VIEWED, CANCELLED
+  viewingResult         String?    // Kết quả sau khi xem
+  resultNote            String?    // Ghi chú kết quả
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// Phiếu đặt cọc (theo ERD)
+model DepositTicket {
+  id                    String   @id @default(uuid())
+  registrationId        String
+  registration          RegistrationTicket @relation(fields: [registrationId], references: [id])
+  
+  branchId              String
+  branch                Branch   @relation(fields: [branchId], references: [id])
+  
+  depositAmount         Float            // Số tiền cọc (tự động tính)
+  depositPercent        Float?           // Phần trăm cọc (null = dùng công thức mặc định 2 tháng)
+  depositedAt           DateTime?        // Thời điểm cọc thực tế
+  paymentDeadline       DateTime         // Hạn thanh toán (createdAt + 24h)
+  status                String   @default("PENDING") // PENDING, PAID, CONFIRMED, CANCELLED, EXPIRED
+  cancelReason          String?
+  
+  // Staff
+  createdById           String?
+  createdBy             User?    @relation("DepositCreator", fields: [createdById], references: [id])
+  confirmedById         String?
+  confirmedBy           User?    @relation("DepositConfirmer", fields: [confirmedById], references: [id])
+  confirmedAt           DateTime?
+  
+  details               DepositDetail[]
+  payments              Payment[]
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// Chi tiết phiếu đặt cọc (theo ERD: composite key Mã phiếu + Mã giường)
+model DepositDetail {
+  id                    String   @id @default(uuid())
+  
+  depositTicketId       String
+  depositTicket         DepositTicket @relation(fields: [depositTicketId], references: [id])
+  
+  bedId                 String
+  bed                   Bed      @relation(fields: [bedId], references: [id])
+  
+  receiptLotNumber      String?  // Số lô biên nhận
+
+  @@unique([depositTicketId, bedId])
+}
+
+// Thanh toán (theo ERD — dùng chung cho mọi loại giao dịch)
+model Payment {
+  id                    String   @id @default(uuid())
+  
+  depositTicketId       String?
+  depositTicket         DepositTicket? @relation(fields: [depositTicketId], references: [id])
+  
+  paymentType           String         // DEPOSIT, RENT, SERVICE, REFUND
+  documentType          String?        // RECEIPT, BANK_TRANSFER, INVOICE
+  amount                Float          // Số tiền
+  paymentMethod         String?        // CASH, TRANSFER
+  paymentTime           DateTime?      // Thời điểm thanh toán
+  status                String   @default("PENDING") // PENDING, COMPLETED, CANCELLED
+  transactionId         String?        // Mã giao dịch (chuyển khoản)
+  content               String?        // Nội dung thanh toán
+  note                  String?        // Ghi chú
+  
+  staffId               String?
+  staff                 User?    @relation("PaymentStaff", fields: [staffId], references: [id])
+  proofUrl              String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }

@@ -1,29 +1,44 @@
 "use client";
 
-import React, { useState } from 'react';
-import { ScheduleAppointmentModal } from './ScheduleAppointmentModal';
-import { UpdateViewingResultModal } from './UpdateViewingResultModal';
-import { WaitlistModal } from './WaitlistModal';
-import { CancelRegistrationModal } from './CancelRegistrationModal';
+import React, { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
+import { createRegistrationTicket, openSingleBed } from '@/actions/room-registration';
 
 const CURRENT_BRANCH = "CN1 - Q.Bình Thạnh";
 
-// Dummy data
-const MOCK_ROOMS = [
-  { id: '101', capacity: '4/6', price: '1,500,000', status: 'Trống 2' },
-  { id: '202', capacity: '2/4', price: '2,000,000', status: 'Trống 2' },
-  { id: '305', capacity: '6/6', price: '1,200,000', status: 'Đã đầy' },
-  { id: '401', capacity: '0/2', price: '3,000,000', status: 'Trống 2' },
-  { id: '405', capacity: '3/4', price: '1,800,000', status: 'Trống 1' },
-];
+export interface RoomData {
+  id: string;
+  name: string;
+  capacity: number;
+  occupancy: number;
+  price: number;
+  status: string;
+  beds: {
+    id: string;
+    position: string;
+    status: string;
+  }[];
+}
 
-type ModalType = 'schedule' | 'update' | 'waitlist' | 'cancel' | null;
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('vi-VN').format(amount);
+};
 
-export const RoomRegistrationView: React.FC = () => {
+type ModalType = null;
+
+interface Props {
+  initialRooms: RoomData[];
+}
+
+export const RoomRegistrationView: React.FC<Props> = ({ initialRooms }) => {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [activeModal, setActiveModal] = useState<ModalType>(null);
-  const [consultingRooms, setConsultingRooms] = useState<typeof MOCK_ROOMS>([]);
+  const [consultingRooms, setConsultingRooms] = useState<RoomData[]>([]);
+  const [expandedRoomId, setExpandedRoomId] = useState<string | null>(null);
 
-  const handleAddToConsulting = (room: typeof MOCK_ROOMS[0]) => {
+  const handleAddToConsulting = (room: RoomData) => {
     if (!consultingRooms.find(r => r.id === room.id)) {
       setConsultingRooms([...consultingRooms, room]);
     }
@@ -31,6 +46,19 @@ export const RoomRegistrationView: React.FC = () => {
 
   const handleRemoveFromConsulting = (roomId: string) => {
     setConsultingRooms(consultingRooms.filter(r => r.id !== roomId));
+  };
+
+  const handleFormSubmit = async (formData: FormData) => {
+    const roomIds = consultingRooms.map(room => room.id).join(',');
+    formData.append('roomIds', roomIds);
+    startTransition(async () => {
+      try {
+        await createRegistrationTicket(formData);
+        router.push('/dashboard/registrations');
+      } catch (error) {
+        console.error('Submission error:', error);
+      }
+    });
   };
 
   return (
@@ -56,28 +84,15 @@ export const RoomRegistrationView: React.FC = () => {
             <option value="m">Nam</option>
             <option value="f">Nữ</option>
           </select>
-          <input 
-            type="number"
-            className="bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary placeholder:text-on-surface-secondary" 
-            placeholder="Số lượng..." 
-          />
-          <input 
-            className="bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary placeholder:text-on-surface-secondary" 
-            placeholder="Mức giá..." 
-          />
-          <input 
-            type="date"
-            className="bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary text-on-surface-secondary" 
-          />
+          <input type="number" className="bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary placeholder:text-on-surface-secondary" placeholder="Số lượng..." />
+          <input className="bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary placeholder:text-on-surface-secondary" placeholder="Mức giá..." />
+          <input type="date" className="bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary text-on-surface-secondary" />
           <select className="bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary text-on-surface-secondary">
             <option value="">Thời hạn thuê...</option>
             <option value="6m">6 tháng</option>
             <option value="12m">12 tháng</option>
           </select>
-          <input 
-            className="bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary placeholder:text-on-surface-secondary" 
-            placeholder="Tiện ích ưu tiên..." 
-          />
+          <input className="bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary placeholder:text-on-surface-secondary" placeholder="Tiện ích ưu tiên..." />
         </div>
 
         {/* Data Grid */}
@@ -93,43 +108,105 @@ export const RoomRegistrationView: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {MOCK_ROOMS.map((room, idx) => (
-                <tr key={idx} className="border-b border-border hover:bg-primary-container transition-colors group">
-                  <td className="px-[12px] py-[8px] font-semibold text-[13px]">{room.id}</td>
-                  <td className="px-[12px] py-[8px] text-[13px]">{room.capacity}</td>
-                  <td className="px-[12px] py-[8px] text-[13px] font-mono">{room.price}</td>
-                  <td className="px-[12px] py-[8px]">
-                    <span className={`px-[9px] py-[3px] text-[10px] font-semibold rounded-full uppercase tracking-wider inline-flex items-center justify-center ${
-                      room.status === 'Đã đầy' 
-                        ? 'bg-error-container text-error' 
-                        : 'bg-success-container text-success'
-                    }`}>
-                      {room.status}
-                    </span>
-                  </td>
-                  <td className="px-[12px] py-[8px] text-right">
-                    <div className="flex items-center justify-end gap-[8px]">
-                      <button className="text-primary hover:underline text-[12px] font-semibold">
-                        Chi tiết
-                      </button>
-                      <button 
-                        onClick={() => handleAddToConsulting(room)}
-                        className="bg-primary text-white px-[14px] py-[7px] rounded-[5px] text-[12px] font-semibold hover:bg-primary-light flex items-center justify-center gap-[6px]"
-                      >
-                        Tạo phiếu 
-                        <span className="bg-secondary-dark text-on-surface-secondary rounded-[3px] font-mono text-[10px] px-[4px] py-[1px] ml-[2px]">T</span>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {initialRooms.map((room) => {
+                const available = room.capacity - room.occupancy;
+                const statusLabel = available > 0 ? `Trống ${available}` : 'Đã đầy';
+                const isExpanded = expandedRoomId === room.id;
+
+                return (
+                  <React.Fragment key={room.id}>
+                    {/* DÒNG HIỂN THỊ PHÒNG */}
+                    <tr className="border-b border-border hover:bg-primary-container transition-colors group">
+                      <td className="px-[12px] py-[8px] font-semibold text-[13px]">Phòng {room.name}</td>
+                      <td className="px-[12px] py-[8px] text-[13px]">{room.occupancy}/{room.capacity}</td>
+                      <td className="px-[12px] py-[8px] text-[13px] font-mono">{formatCurrency(room.price)}</td>
+                      <td className="px-[12px] py-[8px]">
+                        <span className={`px-[9px] py-[3px] text-[10px] font-semibold rounded-full uppercase tracking-wider inline-flex items-center justify-center ${
+                          available <= 0 ? 'bg-error-container text-error' : 'bg-success-container text-success'
+                        }`}>
+                          {statusLabel}
+                        </span>
+                      </td>
+                      <td className="px-[12px] py-[8px] text-right">
+                        <div className="flex items-center justify-end gap-[8px]">
+                          <button 
+                            type="button"
+                            onClick={() => setExpandedRoomId(isExpanded ? null : room.id)}
+                            className="text-primary hover:underline text-[12px] font-semibold"
+                          >
+                            {isExpanded ? 'Đóng lại' : 'Chi tiết'}
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => handleAddToConsulting(room)}
+                            className="bg-primary text-white px-[14px] py-[7px] rounded-[5px] text-[12px] font-semibold hover:bg-primary-light flex items-center justify-center gap-[6px]"
+                          >
+                            Tạo phiếu 
+                            <span className="bg-secondary-dark text-on-surface-secondary rounded-[3px] font-mono text-[10px] px-[4px] py-[1px] ml-[2px]">T</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+
+                    {/* KHU VỰC MỞ RỘNG - DANH SÁCH GIƯỜNG */}
+                    {isExpanded && (
+                      <tr className="bg-secondary/50 border-b border-border">
+                        <td colSpan={5} className="p-[16px]">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-on-surface-secondary mb-[8px]">
+                            Tra cứu chi tiết giường - Phòng {room.name}
+                          </div>
+                          <div className="grid grid-cols-4 gap-[10px]">
+                            {room.beds.map(bed => {
+                              const isDeposited = bed.status === 'DEPOSITED';
+                              const isOccupied = bed.status === 'OCCUPIED';
+                              
+                              return (
+                                <div key={bed.id} className={`p-[10px] border rounded-[6px] bg-surface flex flex-col justify-between ${
+                                  isDeposited ? 'border-warning' : isOccupied ? 'border-error opacity-70' : 'border-border'
+                                }`}>
+                                  <div>
+                                    <div className="font-semibold text-[13px]">{bed.position}</div>
+                                    <div className="text-[11px] mt-[4px]">
+                                      Trạng thái: <span className={`font-bold ${isDeposited ? 'text-warning' : isOccupied ? 'text-error' : 'text-success'}`}>
+                                        {isDeposited ? 'Đã cọc (Khóa)' : isOccupied ? 'Đang ở' : 'Trống'}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* USE CASE EXTEND: MỞ PHÒNG (CHECK-IN) */}
+                                  {isDeposited && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if(confirm(`Xác nhận khách tới nhận giường ${bed.position}?`)) {
+                                          startTransition(async () => {
+                                            await openSingleBed(bed.id);
+                                          });
+                                        }
+                                      }}
+                                      disabled={isPending}
+                                      className="mt-[10px] w-full py-[5px] bg-primary-container text-primary rounded-[4px] text-[11px] font-bold hover:opacity-80 transition-opacity disabled:opacity-50"
+                                    >
+                                      {isPending ? 'Đang xử lý...' : 'Mở phòng (Check-in) ↗'}
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
       </div>
 
       {/* Right Pane - Registration Form */}
-      <div className="flex-1 flex flex-col bg-surface border border-border rounded-[8px] p-[16px]">
+      <form action={handleFormSubmit} className="flex-1 flex flex-col bg-surface border border-border rounded-[8px] p-[16px]">
         <div className="flex justify-between items-center mb-[16px] pb-[12px] border-b border-border">
           <h2 className="text-[15px] font-semibold">Phiếu đăng ký thuê phòng</h2>
           <span className="bg-warning-container text-warning px-[9px] py-[3px] rounded-full text-[10px] font-semibold uppercase tracking-wider">
@@ -140,100 +217,112 @@ export const RoomRegistrationView: React.FC = () => {
         <div className="flex-1 overflow-auto space-y-[24px]">
           {/* Section 1 */}
           <section>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-on-surface-secondary mb-[8px]">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-on-surface-secondary mb-[12px]">
               1. Thông tin khách hàng
             </div>
-            <div className="grid grid-cols-4 gap-[10px]">
-              <div className="col-span-1">
-                <input className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="CCCD/CMND (*)..." />
+            <div className="grid grid-cols-2 gap-[12px]">
+              <div>
+                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">CCCD / CMND</label>
+                <input name="cccd" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="Nhập số CCCD..." />
               </div>
-              <div className="col-span-2">
-                <input className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="Họ và tên (*)..." />
+              <div>
+                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Họ và tên <span className="text-error">*</span></label>
+                <input name="customerName" required className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="Nhập họ tên đầy đủ..." />
               </div>
-              <div className="col-span-1">
-                <select className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary text-on-surface-secondary">
-                  <option value="">Giới tính...</option>
+              <div>
+                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Số điện thoại <span className="text-error">*</span></label>
+                <input name="phoneNumber" required className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="VD: 0901234567" />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Email</label>
+                <input name="email" type="email" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="VD: email@gmail.com" />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Ngày sinh</label>
+                <input name="dateOfBirth" type="date" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Giới tính</label>
+                <select name="gender" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary">
+                  <option value="">Chọn giới tính...</option>
                   <option value="m">Nam</option>
                   <option value="f">Nữ</option>
                 </select>
               </div>
               <div className="col-span-2">
-                <input className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="Số điện thoại (*)..." />
-              </div>
-              <div className="col-span-2">
-                <input className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="Email..." />
-              </div>
-              <div className="col-span-4">
-                <input className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="Địa chỉ thường trú..." />
+                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Địa chỉ thường trú</label>
+                <input name="address" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="Nhập địa chỉ đầy đủ..." />
               </div>
             </div>
           </section>
-
+          
           <section>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-on-surface-secondary mb-[8px]">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-on-surface-secondary mb-[12px]">
               2. Yêu cầu thuê
             </div>
-            <div className="grid grid-cols-4 gap-[10px]">
+            <div className="grid grid-cols-2 gap-[12px]">
               <div>
-                <select className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary text-on-surface-secondary">
-                  <option value="">Hình thức thuê...</option>
+                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Hình thức thuê</label>
+                <select name="rentalType" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary">
+                  <option value="">Chọn hình thức...</option>
                   <option value="nguyen_can">Nguyên căn</option>
                   <option value="o_ghep">Ở ghép</option>
                 </select>
               </div>
               <div>
-                <select className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary text-on-surface-secondary">
-                  <option value="">Loại phòng...</option>
+                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Loại phòng mong muốn</label>
+                <select name="roomTypePreference" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary">
+                  <option value="">Chọn loại phòng...</option>
                   <option value="ktx">KTX</option>
                   <option value="studio">Studio</option>
                   <option value="1pn">1 Phòng ngủ</option>
                 </select>
               </div>
               <div>
-                <select className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary text-on-surface-secondary">
-                  <option value="">Giới tính phòng...</option>
-                  <option value="m">Nam</option>
-                  <option value="f">Nữ</option>
-                  <option value="all">Không Y/C</option>
-                </select>
-              </div>
-              <div>
-                <input type="number" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary placeholder:text-on-surface-secondary" placeholder="Số người..." />
-              </div>
-              
-              <div>
-                <select disabled defaultValue="binh_thanh" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary text-on-surface-secondary opacity-70 cursor-not-allowed">
+                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Khu vực ưu tiên</label>
+                <input type="hidden" name="preferredArea" value="binh_thanh" />
+                <select disabled defaultValue="binh_thanh" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary opacity-70 cursor-not-allowed">
                   <option value="binh_thanh">{CURRENT_BRANCH}</option>
                 </select>
               </div>
               <div>
-                <input className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary placeholder:text-on-surface-secondary" placeholder="Giá từ..." />
+                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Số người ở</label>
+                <input name="headcount" type="number" min="1" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="VD: 2" />
               </div>
               <div>
-                <input className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary placeholder:text-on-surface-secondary" placeholder="Giá đến..." />
+                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Ngân sách tối thiểu (VNĐ)</label>
+                <input name="minPrice" type="number" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="VD: 1500000" />
               </div>
               <div>
-                <select className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary text-on-surface-secondary">
-                  <option value="">Thời hạn thuê...</option>
+                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Ngân sách tối đa (VNĐ)</label>
+                <input name="maxPrice" type="number" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" placeholder="VD: 3000000" />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Thời hạn thuê</label>
+                <select name="rentalDuration" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary">
+                  <option value="">Chọn thời hạn...</option>
                   <option value="6m">6 tháng</option>
                   <option value="12m">12 tháng</option>
                 </select>
               </div>
-
               <div>
-                <input type="date" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary text-on-surface" title="Ngày dự kiến vào ở" />
+                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Ngày dự kiến vào ở</label>
+                <input name="moveInDate" type="date" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary" />
               </div>
-              <div>
-                <select className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary text-on-surface-secondary">
-                  <option value="">Kênh liên hệ...</option>
+              <div className="col-span-2">
+                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Kênh tiếp nhận</label>
+                <select name="contactChannel" className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary">
+                  <option value="">Chọn kênh liên hệ...</option>
                   <option value="facebook">Facebook</option>
                   <option value="zalo">Zalo</option>
                   <option value="hotline">Hotline</option>
                   <option value="referral">Người quen giới thiệu</option>
+                  <option value="walkin">Đến trực tiếp</option>
                 </select>
               </div>
               <div className="col-span-2">
-                <input className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary placeholder:text-on-surface-secondary" placeholder="Tiêu chí ưu tiên khác (Máy lạnh, ban công...)" />
+                <label className="block text-[11px] font-semibold text-on-surface-secondary mb-[4px]">Tiêu chí ưu tiên khác</label>
+                <textarea name="additionalPreferences" rows={2} className="w-full bg-surface border border-border rounded-[5px] px-[10px] py-[7px] text-[13px] focus:outline-none focus:border-primary resize-none" placeholder="VD: Yêu cầu có máy lạnh, ban công, cho nuôi pet..."></textarea>
               </div>
             </div>
           </section>
@@ -260,10 +349,11 @@ export const RoomRegistrationView: React.FC = () => {
                   <tbody>
                     {consultingRooms.map((room) => (
                       <tr key={room.id} className="border-b border-border last:border-none">
-                        <td className="px-[10px] py-[8px] font-semibold">{room.id}</td>
-                        <td className="px-[10px] py-[8px]">{room.price}</td>
+                        <td className="px-[10px] py-[8px] font-semibold">Phòng {room.name}</td>
+                        <td className="px-[10px] py-[8px]">{formatCurrency(room.price)}</td>
                         <td className="px-[10px] py-[8px] text-right">
                           <button 
+                            type="button"
                             onClick={() => handleRemoveFromConsulting(room.id)}
                             className="text-error hover:text-error-light text-[12px] font-semibold"
                           >
@@ -277,45 +367,26 @@ export const RoomRegistrationView: React.FC = () => {
               </div>
             )}
           </section>
-
         </div>
 
         {/* Footer Actions */}
         <div className="flex items-center justify-end gap-[10px] pt-[16px] mt-[16px] border-t border-border">
           <button 
-            onClick={() => setActiveModal('cancel')}
-            className="flex items-center gap-[6px] bg-surface border border-border text-error px-[14px] py-[7px] rounded-[5px] text-[12px] font-semibold hover:bg-error-container hover:border-error transition-colors"
+            type="submit" 
+            disabled={isPending}
+            className={`flex items-center gap-[6px] text-white px-[14px] py-[7px] rounded-[5px] text-[12px] font-semibold transition-colors ${isPending ? 'bg-primary-light cursor-not-allowed' : 'bg-primary hover:bg-primary-light'}`}
           >
-            Hủy Phiếu
-            <span className="bg-secondary text-on-surface-secondary rounded-[3px] font-mono text-[10px] px-[4px] py-[1px]">Esc</span>
-          </button>
-          
-          <div className="flex-1"></div> {/* Spacer */}
-
-          <button 
-            onClick={() => setActiveModal('waitlist')}
-            className="flex items-center gap-[6px] bg-surface border border-border text-warning px-[14px] py-[7px] rounded-[5px] text-[12px] font-semibold hover:bg-warning-container hover:border-warning transition-colors"
-          >
-            Đưa vào Waitlist
-          </button>
-          <button 
-            onClick={() => setActiveModal('schedule')}
-            className="flex items-center gap-[6px] bg-surface border border-border text-on-surface px-[14px] py-[7px] rounded-[5px] text-[12px] font-semibold hover:bg-secondary transition-colors"
-          >
-            Lập Lịch Hẹn 
-            <span className="bg-secondary-dark text-on-surface-secondary rounded-[3px] font-mono text-[10px] px-[4px] py-[1px]">L</span>
-          </button>
-          <button className="flex items-center gap-[6px] bg-primary text-white px-[14px] py-[7px] rounded-[5px] text-[12px] font-semibold hover:bg-primary-light transition-colors">
-            Lưu Phiếu 
-            <span className="bg-primary-light text-secondary-darker rounded-[3px] font-mono text-[10px] px-[4px] py-[1px]">Ctrl+S</span>
+            {isPending ? (
+              <><Loader2 className="w-[14px] h-[14px] animate-spin" /> Đang lưu...</>
+            ) : (
+              <>
+                Lưu Phiếu 
+                <span className="bg-primary-light text-secondary-darker rounded-[3px] font-mono text-[10px] px-[4px] py-[1px]">Ctrl+S</span>
+              </>
+            )}
           </button>
         </div>
-      </div>
-
-      {activeModal === 'schedule' && <ScheduleAppointmentModal onClose={() => setActiveModal(null)} />}
-      {activeModal === 'update' && <UpdateViewingResultModal onClose={() => setActiveModal(null)} />}
-      {activeModal === 'waitlist' && <WaitlistModal onClose={() => setActiveModal(null)} />}
-      {activeModal === 'cancel' && <CancelRegistrationModal onClose={() => setActiveModal(null)} />}
+      </form>
     </div>
   );
 };

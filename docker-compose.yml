@@ -7,6 +7,7 @@ services:
       POSTGRES_USER: homestay_user
       POSTGRES_PASSWORD: homestay_password
       POSTGRES_DB: homestaydorm
+      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - "5433:5432"
     healthcheck:

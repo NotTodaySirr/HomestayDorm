@@ -89,6 +89,22 @@ const navigationSections: NavigationSection[] = [
     ],
   },
   {
+    title: "ĐẶT CỌC",
+    items: [
+      {
+        label: "Tạo phiếu cọc",
+        href: "/dashboard/deposits/new",
+        icon: UserPlus,
+      },
+      {
+        label: "Quản lý phiếu cọc",
+        href: "/dashboard/deposits",
+        icon: FileText,
+        excludePaths: ["/dashboard/deposits/new"],
+      },
+    ],
+  },
+  {
     title: "BÁO CÁO",
     items: [
       {
