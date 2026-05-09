@@ -33,6 +33,7 @@ model User {
   createdDeposits       DepositTicket[]      @relation("DepositCreator")
   confirmedDeposits     DepositTicket[]      @relation("DepositConfirmer")
   payments              Payment[]            @relation("PaymentStaff")
+  createdContracts      Contract[]           @relation("ContractCreator")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -48,6 +49,7 @@ model Branch {
   registrations RegistrationTicket[]
   appointments  ViewingAppointment[]
   deposits      DepositTicket[]
+  contracts     Contract[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -83,6 +85,7 @@ model Bed {
   status        String   @default("AVAILABLE") // AVAILABLE, OCCUPIED, DEPOSITED, MAINTENANCE
 
   depositDetails DepositDetail[]
+  contractDetails ContractBedDetail[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -127,6 +130,7 @@ model RegistrationTicket {
   appointments          ViewingAppointment[]
   consultingRooms       Room[]               @relation("TicketToRoom")
   deposits              DepositTicket[]
+  contracts             Contract[]
 
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -181,6 +185,7 @@ model DepositTicket {
   
   details               DepositDetail[]
   payments              Payment[]
+  contract              Contract?
 
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -223,4 +228,112 @@ model Payment {
   proofUrl              String?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
+}
+
+// ============================================================================
+// CONTRACT MODELS - Nhận phòng & Lập hợp đồng
+// ============================================================================
+
+enum ContractStatus {
+  ACTIVE      // Hợp đồng đang hiệu lực
+  CANCELLED   // Hợp đồng bị hủy
+  ENDED       // Hợp đồng đã kết thúc
+}
+
+enum ContractRentalType {
+  WHOLE_ROOM  // Thuê nguyên căn
+  BEDS        // Thuê theo giường (ở ghép)
+}
+
+enum PaymentCycle {
+  MONTHLY     // Thanh toán hàng tháng
+  QUARTERLY   // Thanh toán hàng quý
+}
+
+enum OccupantGender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+// Hợp đồng thuê
+model Contract {
+  id              String   @id @default(uuid())
+  code            String   @unique  // Mã hợp đồng (VD: HD001)
+
+  // Liên kết nguồn
+  registrationId  String
+  registration    RegistrationTicket @relation(fields: [registrationId], references: [id])
+
+  depositTicketId String   @unique  // 1 phiếu cọc chỉ tạo 1 hợp đồng
+  depositTicket   DepositTicket @relation(fields: [depositTicketId], references: [id])
+
+  branchId        String
+  branch          Branch   @relation(fields: [branchId], references: [id])
+
+  // Thông tin hợp đồng
+  rentalType      ContractRentalType  // Tự động suy ra từ số giường
+  paymentCycle    PaymentCycle @default(MONTHLY)
+  status          ContractStatus @default(ACTIVE)
+
+  startDate       DateTime
+  endDate         DateTime?  // Nullable nếu chưa xác định
+  depositAmount   Float      // Snapshot từ DepositTicket
+  monthlyRent     Float      // Tổng giá thuê/tháng
+  serviceFee      Float      @default(0)  // Phí dịch vụ
+  note            String?
+
+  // Xác nhận nhận phòng (bắt buộc trước khi tạo hợp đồng)
+  checkInConfirmed        Boolean @default(false)
+  roomConditionConfirmed  Boolean @default(false)
+  documentConfirmed       Boolean @default(false)
+
+  // Staff
+  createdById     String?
+  createdBy       User?    @relation("ContractCreator", fields: [createdById], references: [id])
+
+  // Relations
+  bedDetails      ContractBedDetail[]
+  occupants       ContractOccupant[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Chi tiết giường trong hợp đồng (snapshot giá tại thời điểm ký)
+model ContractBedDetail {
+  id             String   @id @default(uuid())
+
+  contractId     String
+  contract       Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  bedId          String
+  bed            Bed      @relation(fields: [bedId], references: [id])
+
+  priceAtSigning Float    // Giá thuê/tháng tại thời điểm ký
+  startDate      DateTime // Ngày bắt đầu thuê giường này
+  endDate        DateTime? // Ngày kết thúc (nullable)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([contractId, bedId])
+}
+
+// Người ở trong hợp đồng
+model ContractOccupant {
+  id             String   @id @default(uuid())
+
+  contractId     String
+  contract       Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  fullName       String
+  identityNumber String         // CCCD/CMND
+  gender         OccupantGender
+  dateOfBirth    DateTime
+  nationality    String   @default("Việt Nam")
+  isRepresentative Boolean @default(false)  // Người đại diện hợp đồng
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }

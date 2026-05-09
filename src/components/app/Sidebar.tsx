@@ -3,6 +3,7 @@
 import {
   ChartNoAxesColumnIncreasing,
   Clock3,
+  FileSignature,
   FileText,
   Grid2X2,
   LogOut,
@@ -46,6 +47,7 @@ const navigationSections: NavigationSection[] = [
           "/dashboard/return-room-tickets",
           "/dashboard/registrations",
           "/dashboard/appointments",
+          "/dashboard/check-in-contracts",
         ],
       },
       {
@@ -110,6 +112,11 @@ const navigationSections: NavigationSection[] = [
         href: "/dashboard/deposits",
         icon: FileText,
         excludePaths: ["/dashboard/deposits/new"],
+      },
+      {
+        label: "Quản lý hợp đồng",
+        href: "/dashboard/check-in-contracts",
+        icon: FileSignature,
       },
     ],
   },
