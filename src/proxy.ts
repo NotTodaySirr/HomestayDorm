@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { decrypt, isAuthBypassEnabled } from "@/lib/session-token";
+import { getDefaultRouteForRole } from "@/lib/role-navigation";
 
 const protectedRoutes = ["/dashboard", "/profile"];
 const publicRoutes = ["/login", "/signup", "/"];
-const DEFAULT_AUTHENTICATED_ROUTE = "/dashboard";
 
 function isRouteMatch(path: string, routes: string[]) {
   return routes.some((route) => path === route || path.startsWith(`${route}/`));
@@ -38,7 +38,7 @@ export default async function proxy(req: NextRequest) {
   }
 
   if (isPublicRoute && hasValidSession && !path.startsWith("/dashboard")) {
-    return NextResponse.redirect(new URL(DEFAULT_AUTHENTICATED_ROUTE, req.nextUrl));
+    return NextResponse.redirect(new URL(getDefaultRouteForRole(session?.role), req.nextUrl));
   }
 
   return NextResponse.next();

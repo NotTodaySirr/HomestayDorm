@@ -183,7 +183,19 @@ function isActivePath(
   return item.href !== "/dashboard/payment-slips" || !currentQueue;
 }
 
-export function Sidebar({ userRole = "USER" }: { userRole?: string }) {
+const roleLabels: Record<string, string> = {
+  ADMIN: "Quan ly",
+  ACCOUNTANT: "Ke toan",
+  USER: "Sale",
+};
+
+export function Sidebar({
+  userName = "Nguoi dung",
+  userRole = "USER",
+}: {
+  userName?: string;
+  userRole?: string;
+}) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentQueue = searchParams.get("queue");
@@ -197,8 +209,16 @@ export function Sidebar({ userRole = "USER" }: { userRole?: string }) {
     .filter((section) => section.items.length > 0);
 
   return (
-    <aside className="flex h-full w-[var(--sidebar-width)] flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-on-surface-secondary)]">
-      <nav className="flex-1 overflow-y-auto py-2" aria-label="Điều hướng chính">
+    <aside className="flex h-[calc(100dvh-var(--topbar-height))] w-[var(--sidebar-width)] shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-on-surface-secondary)]">
+      <div className="shrink-0 border-b border-[var(--color-border)] px-3.5 py-3">
+        <p className="truncate text-[13px] font-semibold leading-5 text-[var(--color-on-surface)]">
+          {userName}
+        </p>
+        <p className="truncate text-[11px] font-medium uppercase leading-4 tracking-[0.05em] text-[var(--color-on-secondary)]">
+          {roleLabels[userRole] ?? userRole} / {userRole}
+        </p>
+      </div>
+      <nav className="min-h-0 flex-1 overflow-y-auto py-2" aria-label="Điều hướng chính">
         {filteredSections.map((section) => (
           <div key={section.title} className="pb-2">
             <div className="px-3 pb-1 pt-2.5 text-[10px] font-semibold uppercase leading-none tracking-[0.08em] text-[var(--color-on-secondary)]">
@@ -274,7 +294,7 @@ export function Sidebar({ userRole = "USER" }: { userRole?: string }) {
         ))}
       </nav>
 
-      <div className="border-t border-[var(--color-border)] py-2">
+      <div className="shrink-0 border-t border-[var(--color-border)] py-2">
         <form action={logout}>
           <button
             type="submit"
@@ -293,3 +313,4 @@ export function Sidebar({ userRole = "USER" }: { userRole?: string }) {
     </aside>
   );
 }
+

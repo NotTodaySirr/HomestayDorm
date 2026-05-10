@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import prisma from '@/lib/db';
 import { SignupFormSchema, LoginFormSchema } from '@/lib/definitions';
 import { createSession, deleteSession } from '@/lib/session';
+import { getDefaultRouteForRole } from '@/lib/role-navigation';
 
 export type FormState = {
   errors?: {
@@ -45,6 +46,8 @@ export async function signup(state: FormState | undefined, formData: FormData): 
   // 2. Prepare data for insertion into database
   const hashedPassword = await bcrypt.hash(password, 10);
 
+  let redirectPath = getDefaultRouteForRole();
+
   try {
     // 3. Create user in database
     const user = await prisma.user.create({
@@ -61,6 +64,7 @@ export async function signup(state: FormState | undefined, formData: FormData): 
 
     // 4. Create session
     await createSession(user.id, user.role);
+    redirectPath = getDefaultRouteForRole(user.role);
     
   } catch (error) {
     // Handle unique constraint violation for email
@@ -74,7 +78,7 @@ export async function signup(state: FormState | undefined, formData: FormData): 
     };
   }
   
-  redirect('/dashboard'); // Or another protected route
+  redirect(redirectPath);
 }
 
 export async function login(state: FormState | undefined, formData: FormData): Promise<FormState | undefined> {
@@ -116,7 +120,7 @@ export async function login(state: FormState | undefined, formData: FormData): P
   // 4. Create session
   await createSession(user.id, user.role);
 
-  redirect('/dashboard'); // Or another protected route
+  redirect(getDefaultRouteForRole(user.role));
 }
 
 export async function logout() {
