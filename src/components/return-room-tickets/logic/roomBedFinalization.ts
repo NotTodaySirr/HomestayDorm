@@ -25,7 +25,8 @@ export function canUpdateRoomBeds(ticket: ReturnRoomTicket) {
   const allowedStatus =
     ticket.status === "customerConfirmed" ||
     ticket.status === "waitingDepositRefund" ||
-    ticket.status === "waitingExtraPayment";
+    ticket.status === "waitingExtraPayment" ||
+    ticket.status === "completed";
 
   return allowedStatus && ticket.roomFinalization.status === "notStarted";
 }

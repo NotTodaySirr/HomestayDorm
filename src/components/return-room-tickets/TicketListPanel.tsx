@@ -4,6 +4,7 @@ import type {
   ReturnRoomTicket,
   SortKey,
 } from "@/lib/return-room-tickets/types";
+import { isTicketInQueue } from "@/lib/return-room-tickets/filters";
 import { queueLabels } from "@/lib/return-room-tickets/status";
 import {
   ActionButton,
@@ -88,6 +89,7 @@ export function TicketListPanel({
               {tickets.map((ticket) => {
                 const isSelected = ticket.id === selectedTicketId;
                 const isOverdue = isTicketOverdue(ticket);
+                const isWaitingRoomUpdate = isTicketInQueue(ticket, "roomUpdate");
 
                 return (
                   <tr
@@ -136,7 +138,13 @@ export function TicketListPanel({
                       {formatDate(ticket.room.expectedReturnDate)}
                     </td>
                     <td className="px-3 py-3 align-top">
-                      <StatusPill status={ticket.status} compact />
+                      {isWaitingRoomUpdate ? (
+                        <span className="inline-flex max-w-full items-center rounded-full bg-[var(--color-primary-container)] px-[9px] py-[3px] text-[11px] leading-none text-[var(--color-primary)]">
+                          <span className="truncate">{queueLabels.roomUpdate}</span>
+                        </span>
+                      ) : (
+                        <StatusPill status={ticket.status} compact />
+                      )}
                     </td>
                     <td className="px-3 py-3 text-right align-top">
                       <ActionButton icon={Eye} onClick={() => onSelectTicket(ticket.id)}>

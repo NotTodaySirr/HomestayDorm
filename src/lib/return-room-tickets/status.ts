@@ -87,6 +87,7 @@ export const queueLabels: Record<QueueKey, string> = {
   pendingReview: "Chờ kiểm tra",
   reconciling: "Đang đối soát",
   waitingCustomer: "Chờ khách xác nhận",
+  roomUpdate: "Cập nhật phòng/giường",
   needsRecheck: "Cần kiểm tra lại",
   completed: "Hoàn tất",
   all: "Tất cả",
@@ -98,6 +99,8 @@ export const queueStatusGroups: Record<QueueKey, ReturnTicketStatus[]> = {
   waitingCustomer: [
     "accountingResultReady",
     "waitingCustomerConfirmation",
+  ],
+  roomUpdate: [
     "customerConfirmed",
     "waitingDepositRefund",
     "waitingExtraPayment",
@@ -133,7 +136,8 @@ export function getPrimaryAction(ticket: ReturnRoomTicket) {
   if (
     ticket.status === "customerConfirmed" ||
     ticket.status === "waitingDepositRefund" ||
-    ticket.status === "waitingExtraPayment"
+    ticket.status === "waitingExtraPayment" ||
+    (ticket.status === "completed" && ticket.roomFinalization.status === "notStarted")
   ) {
     return "Cập nhật phòng/giường";
   }

@@ -45,8 +45,7 @@ export function ContractFormPanel({
         occupant.fullName.trim() &&
         occupant.identityNumber.trim() &&
         occupant.gender &&
-        occupant.dateOfBirth &&
-        occupant.nationality.trim(),
+        occupant.dateOfBirth,
     ) &&
     draft.checkInConfirmed &&
     draft.roomConditionConfirmed &&
@@ -375,7 +374,7 @@ function OccupantsSection({
               key={occupant.id}
               className="border-b border-[var(--color-border)] p-3 last:border-b-0"
             >
-              <div className="grid gap-3 lg:grid-cols-[92px_1.2fr_128px_110px_138px_1fr_32px] lg:items-end">
+              <div className="grid gap-3 lg:grid-cols-[92px_1.2fr_128px_110px_138px_32px] lg:items-end">
                 <div className="flex items-center gap-2 lg:flex-col lg:items-start lg:gap-1">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--color-on-secondary)]">
                     Người {index + 1}
@@ -433,16 +432,6 @@ function OccupantsSection({
                     className={inputClasses}
                   />
                 </FormField>
-                <FormField label="Quốc tịch" required>
-                  <input
-                    value={occupant.nationality}
-                    onChange={(event) =>
-                      onUpdateOccupant(occupant.id, "nationality", event.target.value)
-                    }
-                    className={inputClasses}
-                  />
-                </FormField>
-
                 <div className="flex items-end justify-end">
                   {index === 0 ? (
                     <span className="hidden h-8 w-8 lg:block" />

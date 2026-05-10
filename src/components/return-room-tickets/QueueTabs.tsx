@@ -6,6 +6,7 @@ const queueOrder: QueueKey[] = [
   "pendingReview",
   "reconciling",
   "waitingCustomer",
+  "roomUpdate",
   "needsRecheck",
   "completed",
   "all",

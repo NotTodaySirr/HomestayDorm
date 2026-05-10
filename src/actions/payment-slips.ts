@@ -100,6 +100,25 @@ function getRefundRateFromPolicy(code: RefundPolicyCode) {
   return 100;
 }
 
+function normalizeSearchText(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+type AccountingDetailLike = {
+  description: string;
+  amount: number;
+  note?: string | null;
+};
+
+function findAccountingDetail<T extends AccountingDetailLike>(details: T[], keyword: string) {
+  return details.find((detail) =>
+    normalizeSearchText(detail.description).includes(keyword),
+  );
+}
+
 function mapTransactionStatus(value?: string | null): TransactionStatus {
   if (value === 'COMPLETED') return 'DA_THANH_TOAN';
   if (value === 'CANCELLED') return 'HUY';
@@ -115,10 +134,9 @@ function mapPaymentSlip(ticket: any): PaymentSlip {
   const stayDurationMonths = monthDiff(contract.startDate, ticket.returnRoomTicket.actualReturnDate);
   const managerDetails = ticket.details?.filter((detail: any) => detail.source === 'manager') ?? [];
   const accountingDetails = ticket.details?.filter((detail: any) => detail.source === 'accounting') ?? [];
-  const compensationFee = managerDetails.reduce((sum: number, detail: any) => sum + detail.amount, 0);
-  const adjustmentDetail = accountingDetails.find((detail: any) =>
-    detail.description.includes('điều chỉnh'),
-  );
+  const managerCompensationFee = managerDetails.reduce((sum: number, detail: any) => sum + detail.amount, 0);
+  const compensationDetail = findAccountingDetail(accountingDetails, 'boi thuong');
+  const adjustmentDetail = findAccountingDetail(accountingDetails, 'dieu chinh');
   const latestPayment = ticket.payments?.[0];
   const finalAmount = ticket.finalAmount ?? 0;
 
@@ -142,17 +160,17 @@ function mapPaymentSlip(ticket: any): PaymentSlip {
       assetStatus: ticket.hasDamageOrLoss
         ? managerDetails.map((detail: any) => detail.description).join(', ') || 'Có ghi nhận hư hỏng/mất mát'
         : 'Đầy đủ',
-      estimatedCompensation: compensationFee,
+      estimatedCompensation: managerCompensationFee,
       note: ticket.managerNotes || '',
     },
     calculation: {
       refundPolicy: getRefundPolicyFromRate(ticket.refundRate),
-      unpaidRent: accountingDetails.find((detail: any) => detail.description.includes('thuê'))?.amount ?? 0,
-      electricityFee: accountingDetails.find((detail: any) => detail.description.includes('điện'))?.amount ?? 0,
-      waterFee: accountingDetails.find((detail: any) => detail.description.includes('nước'))?.amount ?? 0,
-      serviceFee: accountingDetails.find((detail: any) => detail.description.includes('dịch vụ'))?.amount ?? 0,
-      compensationFee,
-      violationPenalty: accountingDetails.find((detail: any) => detail.description.includes('phạt'))?.amount ?? 0,
+      unpaidRent: findAccountingDetail(accountingDetails, 'thue')?.amount ?? 0,
+      electricityFee: findAccountingDetail(accountingDetails, 'dien')?.amount ?? 0,
+      waterFee: findAccountingDetail(accountingDetails, 'nuoc')?.amount ?? 0,
+      serviceFee: findAccountingDetail(accountingDetails, 'dich vu')?.amount ?? 0,
+      compensationFee: compensationDetail?.amount ?? managerCompensationFee,
+      violationPenalty: findAccountingDetail(accountingDetails, 'phat')?.amount ?? 0,
       adjustment: adjustmentDetail?.amount ?? 0,
       adjustmentReason: adjustmentDetail?.note || '',
     },
@@ -482,9 +500,6 @@ export async function recordPaymentTransaction(
     if (input.type !== expectedType || input.direction !== expectedDirection) {
       return { success: false, error: 'Loại giao dịch không khớp với kết quả đối soát' };
     }
-    if (Math.abs(input.amount - expectedAmount) > 0.01) {
-      return { success: false, error: 'Số tiền giao dịch không khớp với số tiền cuối cùng' };
-    }
 
     const paymentTime = new Date(input.transactionDate);
     if (Number.isNaN(paymentTime.getTime())) {
@@ -519,11 +534,6 @@ export async function recordPaymentTransaction(
           staffId: staff?.id ?? null,
         },
       });
-
-      await tx.returnRoomTicket.update({
-        where: { id: ticket.returnRoomTicketId },
-        data: { status: 'COMPLETED' },
-      });
     });
 
     const updated = await prisma.reconciliationTicket.findUnique({
@@ -534,6 +544,7 @@ export async function recordPaymentTransaction(
     revalidatePath('/dashboard/payment-slips');
     revalidatePath(`/dashboard/payment-slips/${reconciliationId}`);
     revalidatePath('/dashboard/return-room-tickets');
+    revalidatePath('/dashboard/check-in-contracts');
     revalidatePath('/dashboard/reports/revenue');
 
     return { success: true, slip: mapPaymentSlip(updated!) };
@@ -563,16 +574,20 @@ export async function confirmNoTransaction(
       return { success: false, error: 'Phiếu này vẫn còn phát sinh giao dịch thanh toán' };
     }
 
-    const updated = await prisma.returnRoomTicket.update({
+    const updated = await prisma.returnRoomTicket.findUnique({
       where: { id: ticket.returnRoomTicketId },
-      data: { status: 'COMPLETED' },
       include: { reconciliation: { include: paymentSlipInclude } },
     });
 
+    if (!updated?.reconciliation) {
+      return { success: false, error: 'Unable to reload payment slip' };
+    }
+
     revalidatePath('/dashboard/payment-slips');
     revalidatePath(`/dashboard/payment-slips/${reconciliationId}`);
+    revalidatePath('/dashboard/return-room-tickets');
 
-    return { success: true, slip: mapPaymentSlip(updated.reconciliation!) };
+    return { success: true, slip: mapPaymentSlip(updated.reconciliation) };
   } catch (error) {
     console.error('Error confirming no transaction:', error);
     return { success: false, error: 'Không thể xác nhận không phát sinh giao dịch' };

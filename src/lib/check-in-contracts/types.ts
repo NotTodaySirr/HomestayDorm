@@ -1,6 +1,7 @@
 export type CheckInContractStatus =
   | "waitingCheckIn"
   | "contractCreated"
+  | "ended"
   | "cancelled";
 
 export type PaymentCycle = "monthly" | "quarterly";

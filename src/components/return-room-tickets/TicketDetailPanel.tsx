@@ -46,7 +46,8 @@ export function TicketDetailPanel({
   const shouldUpdateRoom =
     ticket.status === "customerConfirmed" ||
     ticket.status === "waitingDepositRefund" ||
-    ticket.status === "waitingExtraPayment";
+    ticket.status === "waitingExtraPayment" ||
+    (ticket.status === "completed" && ticket.roomFinalization.status === "notStarted");
   const shouldRecheck = ticket.status === "needsRecheck";
   const canOpenRoomBedModal = canUpdateRoomBeds(ticket);
 

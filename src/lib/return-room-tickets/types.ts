@@ -14,6 +14,7 @@ export type QueueKey =
   | "pendingReview"
   | "reconciling"
   | "waitingCustomer"
+  | "roomUpdate"
   | "needsRecheck"
   | "completed"
   | "all";

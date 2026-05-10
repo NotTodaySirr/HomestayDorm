@@ -1,4 +1,4 @@
-import { ArrowLeft, ClipboardCheck, ExternalLink, FileSignature, Undo2 } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, FileSignature, Undo2 } from "lucide-react";
 import type { CheckInContractRecord } from "@/lib/check-in-contracts/types";
 import {
   formatContractedBeds,
@@ -209,21 +209,10 @@ export function CheckInActionPanel({
         >
           Lập hợp đồng
         </ActionButton>
-        {hasActiveContract ? (
-          existingReturnTicket ? (
-            <ActionButton
-              icon={ExternalLink}
-              onClick={() => {
-                window.location.href = `/dashboard/return-room-tickets?id=${existingReturnTicket.id}`;
-              }}
-            >
-              Xem phiếu trả phòng
-            </ActionButton>
-          ) : (
-            <ActionButton icon={Undo2} variant="primary" onClick={onOpenReturnTicketModal}>
-              Tạo phiếu trả phòng
-            </ActionButton>
-          )
+        {hasActiveContract && !existingReturnTicket ? (
+          <ActionButton icon={Undo2} variant="primary" onClick={onOpenReturnTicketModal}>
+            Tạo phiếu trả phòng
+          </ActionButton>
         ) : null}
         {!canCreateContract ? (
           <ActionButton icon={ClipboardCheck} disabled>

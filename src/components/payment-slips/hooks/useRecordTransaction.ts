@@ -38,7 +38,7 @@ export function useRecordTransaction({
     
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      return;
+      return false;
     }
 
     const transaction: PaymentTransaction = {
@@ -56,6 +56,7 @@ export function useRecordTransaction({
     };
 
     onSubmit(transaction);
+    return true;
   };
 
   return {

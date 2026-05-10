@@ -125,10 +125,12 @@ export const checkInContractRecords: CheckInContractRecord[] = [
     status: "contractCreated",
     note: "Khách đã nhận phòng và ký hợp đồng theo giường.",
     contract: {
+      id: "contract-014",
       code: "HD-2026-014",
       startDate: "2026-05-06",
       paymentCycle: "monthly",
       rentalType: "beds",
+      status: "active",
     },
   },
   {

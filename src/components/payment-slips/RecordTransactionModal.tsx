@@ -241,7 +241,11 @@ export function RecordTransactionModal({
           </button>
           <button
             type="button"
-            onClick={handleSubmit}
+            onClick={() => {
+              if (handleSubmit()) {
+                onClose();
+              }
+            }}
             className={cx(
               "px-4 py-2 text-[13px] font-semibold rounded-[var(--radius-sm)] flex items-center gap-2 transition-colors text-white shadow-sm",
               isRefund ? "bg-[var(--color-error)] hover:bg-[#d32f2f] border-[var(--color-error)]" : "bg-[var(--color-primary)] hover:bg-[var(--color-primary-light)] border-[var(--color-primary)]"

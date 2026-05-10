@@ -95,6 +95,21 @@ export function filterTickets(
 }
 
 export function isTicketInQueue(ticket: ReturnRoomTicket, queue: QueueKey) {
+  if (queue === "roomUpdate") {
+    return (
+      queueStatusGroups.roomUpdate.includes(ticket.status) ||
+      (ticket.status === "completed" &&
+        ticket.roomFinalization.status === "notStarted")
+    );
+  }
+
+  if (queue === "completed") {
+    return (
+      ticket.status === "completed" &&
+      ticket.roomFinalization.status !== "notStarted"
+    );
+  }
+
   return queueStatusGroups[queue].includes(ticket.status);
 }
 

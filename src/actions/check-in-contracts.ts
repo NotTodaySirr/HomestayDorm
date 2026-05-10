@@ -24,6 +24,7 @@ async function getCurrentUserId(): Promise<string | null> {
 export type CheckInContractStatus =
   | "waitingCheckIn"
   | "contractCreated"
+  | "ended"
   | "cancelled";
 
 export type PaymentCycle = "monthly" | "quarterly";
@@ -193,7 +194,11 @@ function transformToCheckInContractRecord(deposit: any): CheckInContractRecord {
     depositedAt: deposit.depositedAt 
       ? new Date(deposit.depositedAt).toISOString()
       : new Date().toISOString(),
-    status: deposit.contract ? 'contractCreated' : 'waitingCheckIn',
+    status: deposit.contract?.status === 'ENDED'
+      ? 'ended'
+      : deposit.contract
+        ? 'contractCreated'
+        : 'waitingCheckIn',
     note: deposit.registration.additionalPreferences || '',
     contract: deposit.contract ? {
       id: deposit.contract.id,
@@ -835,6 +840,7 @@ export async function finalizeReturnRoomStatus(
         'CUSTOMER_CONFIRMED',
         'WAITING_DEPOSIT_REFUND',
         'WAITING_EXTRA_PAYMENT',
+        'COMPLETED',
       ].includes(ticket.status)
     ) {
       return {
@@ -1087,7 +1093,12 @@ function mapReturnRoomTicket(ticket: any): import('@/lib/return-room-tickets/typ
       endDate: ticket.contract.endDate
         ? new Date(ticket.contract.endDate).toISOString().slice(0, 10)
         : '',
-      status: ticket.contract.status === 'ACTIVE' ? 'Đang hiệu lực' : ticket.contract.status,
+      status:
+        ticket.contract.status === 'ACTIVE'
+          ? 'Đang hiệu lực'
+          : ticket.contract.status === 'ENDED'
+            ? 'Đã kết thúc'
+            : 'Đã hủy',
       depositAmount: ticket.contract.depositAmount,
       stayStatus: ticket.contract.status === 'ENDED' ? 'Đã trả phòng' : 'Đang lưu trú',
     },

@@ -64,8 +64,6 @@ export function PaymentSlipDetailView({ slip }: PaymentSlipDetailViewProps) {
     setIsTransactionModalOpen,
     updateMoneyField,
     handleConfirmCalculation,
-    confirmCustomerAgreement,
-    rejectCustomerAgreement,
     handleTransactionSubmit,
     confirmNoTransaction,
   } = actions;
@@ -313,7 +311,7 @@ export function PaymentSlipDetailView({ slip }: PaymentSlipDetailViewProps) {
           </div>
 
           <div className="flex flex-col gap-3">
-            {(status === "pendingAccounting" || status === "needReview") && (
+            {status === "pendingAccounting" && (
               <>
                 <ActionButton
                   icon={Save}
@@ -326,30 +324,23 @@ export function PaymentSlipDetailView({ slip }: PaymentSlipDetailViewProps) {
               </>
             )}
 
-            {status === "calculated" && (
+            {status === "needReview" && (
               <>
-                <div className="rounded-[var(--radius-sm)] bg-[var(--color-warning-container)] p-3 text-[13px] text-[var(--color-warning)] text-center font-medium leading-relaxed">
-                  Kết quả đã được xác nhận.<br/>Đang chờ khách phản hồi.
-                </div>
                 <ActionButton
-                  icon={CheckCircle2}
-                  onClick={confirmCustomerAgreement}
-                  disabled={isUpdatingCustomerResponse}
+                  icon={Save}
+                  onClick={() => setShowConfirmModal(true)}
+                  disabled={calculation.adjustment !== 0 && !calculation.adjustmentReason.trim()}
                 >
-                  {isUpdatingCustomerResponse ? "Đang ghi nhận..." : "Khách đồng ý"}
-                </ActionButton>
-                <ActionButton
-                  icon={X}
-                  variant="danger"
-                  onClick={rejectCustomerAgreement}
-                  disabled={isUpdatingCustomerResponse}
-                >
-                  Khách không đồng ý
-                </ActionButton>
-                <ActionButton variant="secondary" onClick={() => setStatus("pendingAccounting")}>
                   Chỉnh sửa kết quả
                 </ActionButton>
+                <ActionButton icon={Save} variant="secondary">Lưu nháp</ActionButton>
               </>
+            )}
+
+            {status === "calculated" && (
+              <div className="rounded-[var(--radius-sm)] bg-[var(--color-warning-container)] p-3 text-[13px] text-[var(--color-warning)] text-center font-medium leading-relaxed">
+                Kết quả đã được xác nhận.<br/>Đang chờ quản lý ghi nhận phản hồi của khách.
+              </div>
             )}
 
             {status === "customerConfirmed" && totals.finalAmount > 0 && (
