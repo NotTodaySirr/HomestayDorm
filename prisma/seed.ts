@@ -13,16 +13,25 @@ async function main() {
   console.log('Đang dọn dẹp dữ liệu cũ (Xóa rác)...');
 
   // Xóa theo thứ tự từ bảng con đến bảng cha để tránh lỗi khóa ngoại
+  // Return-room / reconciliation workflow children
+  await prisma.payment.deleteMany();
+  await prisma.reconciliationDetail.deleteMany();
+  await prisma.reconciliationTicket.deleteMany();
+  await prisma.returnRoomTicketBedUpdate.deleteMany();
+  await prisma.returnRoomTicket.deleteMany();
+
+  // Contract children
   await prisma.contractOccupant.deleteMany();
   await prisma.contractBedDetail.deleteMany();
   await prisma.contract.deleteMany();
-  await prisma.payment.deleteMany();
+
+  // Deposit / appointment / registration data
   await prisma.depositDetail.deleteMany();
   await prisma.depositTicket.deleteMany();
   await prisma.viewingAppointment.deleteMany();
-  
-  // Xóa bảng trung gian implicit m-n (nếu có, Prisma thường tự xử lý khi xóa cha)
   await prisma.registrationTicket.deleteMany();
+
+  // Inventory and organization data
   await prisma.bed.deleteMany();
   await prisma.room.deleteMany();
   await prisma.user.deleteMany();

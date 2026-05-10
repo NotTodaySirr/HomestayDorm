@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, CheckCircle2, FilePlus2, Save, X, Printer } from "lucide-react";
+import { ArrowLeft, CheckCircle2, FilePlus2, Save, X } from "lucide-react";
 import Link from "next/link";
 import { Toast } from "@/components/feedback/Toast";
 import {
@@ -421,9 +421,6 @@ export function PaymentSlipDetailView({ slip }: PaymentSlipDetailViewProps) {
                 <div className="rounded-[var(--radius-sm)] bg-[var(--color-success-container)] p-3 text-[13px] text-[var(--color-success)] text-center font-medium">
                   Phiếu thanh toán đã hoàn tất xử lý.
                 </div>
-                <ActionButton icon={Printer} variant="secondary">
-                  In phiếu
-                </ActionButton>
               </>
             )}
           </div>

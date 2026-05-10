@@ -412,6 +412,14 @@ export async function createContractFromDeposit(
       return { success: false, error: 'At least 1 occupant is required' };
     }
 
+    const expectedOccupantCount = depositTicket.registration.headcount || 1;
+    if (draft.occupants.length !== expectedOccupantCount) {
+      return {
+        success: false,
+        error: `Số người ở phải đúng ${expectedOccupantCount} người theo phiếu đặt cọc`,
+      };
+    }
+
     const hasRepresentative = draft.occupants.some(o => o.isRepresentative);
     if (!hasRepresentative) {
       return { success: false, error: 'At least 1 occupant must be representative' };

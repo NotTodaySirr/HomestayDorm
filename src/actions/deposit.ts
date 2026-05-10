@@ -139,6 +139,7 @@ export async function createDepositTicket(formData: FormData) {
     const registrationId = formData.get('registrationId') as string;
     const bedIdsRaw = formData.get('bedIds') as string;
     const bedIds = bedIdsRaw.split(',').filter(Boolean);
+    let createdDepositId = '';
 
     if (!registrationId) throw new Error('Chưa chọn phiếu đăng ký');
     if (bedIds.length === 0) throw new Error('Chưa chọn giường nào');
@@ -182,7 +183,7 @@ export async function createDepositTicket(formData: FormData) {
 
       // 4. Tạo phiếu cọc
       const currentUserId = await getCurrentUserId();
-      await tx.depositTicket.create({
+      const createdDeposit = await tx.depositTicket.create({
         data: {
           registrationId,
           branchId: branch.id,
@@ -195,6 +196,7 @@ export async function createDepositTicket(formData: FormData) {
           },
         },
       });
+      createdDepositId = createdDeposit.id;
 
       // 5. Hoàn thành phiếu đăng ký
       await tx.registrationTicket.update({
@@ -203,8 +205,10 @@ export async function createDepositTicket(formData: FormData) {
       });
     });
 
+    revalidatePath('/dashboard/deposits');
+    revalidatePath(`/dashboard/deposits/${createdDepositId}`);
     revalidatePath('/dashboard/registrations');
-    return { success: true };
+    return { success: true, depositId: createdDepositId };
   } catch (error) {
     console.error('Error in createDepositTicket:', error);
     return { 
@@ -253,6 +257,7 @@ export async function markDepositPaid(depositId: string, formData: FormData) {
   });
 
   revalidatePath('/dashboard/deposits');
+  revalidatePath(`/dashboard/deposits/${depositId}`);
 }
 
 export async function confirmDeposit(depositId: string) {
@@ -298,6 +303,7 @@ export async function confirmDeposit(depositId: string) {
   });
 
   revalidatePath('/dashboard/deposits');
+  revalidatePath(`/dashboard/deposits/${depositId}`);
   revalidatePath('/dashboard/rooms');
   revalidatePath('/dashboard/registrations'); 
   revalidatePath('/dashboard/registrations/new');
@@ -356,6 +362,7 @@ export async function cancelDeposit(depositId: string, formData: FormData) {
   });
 
   revalidatePath('/dashboard/deposits');
+  revalidatePath(`/dashboard/deposits/${depositId}`);
   revalidatePath('/dashboard/rooms');
   revalidatePath('/dashboard/registrations'); 
   revalidatePath('/dashboard/registrations/new');
@@ -384,5 +391,6 @@ export async function openRoomForDeposit(depositId: string) {
   });
 
   revalidatePath('/dashboard/deposits');
+  revalidatePath(`/dashboard/deposits/${depositId}`);
   revalidatePath('/dashboard/rooms');
 }

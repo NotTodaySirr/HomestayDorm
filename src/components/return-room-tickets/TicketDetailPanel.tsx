@@ -5,6 +5,7 @@ import { statusMeta } from "@/lib/return-room-tickets/status";
 import { canUpdateRoomBeds } from "./logic/roomBedFinalization";
 import {
   ActionButton,
+  cx,
   DetailSection,
   FieldRow,
   formatCurrency,
@@ -50,6 +51,8 @@ export function TicketDetailPanel({
     (ticket.status === "completed" && ticket.roomFinalization.status === "notStarted");
   const shouldRecheck = ticket.status === "needsRecheck";
   const canOpenRoomBedModal = canUpdateRoomBeds(ticket);
+  const shouldShowPaymentSlipResult =
+    ticket.status === "waitingCustomerConfirmation" && ticket.accountingResult;
 
   const primaryActions = (
     <>
@@ -146,6 +149,10 @@ export function TicketDetailPanel({
           </dl>
         </DetailSection>
 
+        {shouldShowPaymentSlipResult ? (
+          <PaymentSlipResultSection ticket={ticket} />
+        ) : null}
+
         <DetailSection title="Thông tin hợp đồng" defaultOpen={false}>
           <dl>
             <FieldRow
@@ -225,6 +232,99 @@ function DetailHeader({ description, action }: DetailHeaderProps) {
         </div>
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
+    </div>
+  );
+}
+
+function PaymentSlipResultSection({ ticket }: { ticket: ReturnRoomTicket }) {
+  const result = ticket.accountingResult;
+
+  if (!result) {
+    return null;
+  }
+
+  const finalAmountLabel =
+    result.finalAmount > 0
+      ? "Số tiền hoàn cho khách"
+      : result.finalAmount < 0
+        ? "Số tiền khách cần thanh toán thêm"
+        : "Không phát sinh thanh toán";
+  const finalAmountTone =
+    result.finalAmount > 0
+      ? "border-[var(--color-success)] bg-[var(--color-success-container)] text-[var(--color-success)]"
+      : result.finalAmount < 0
+        ? "border-[var(--color-error)] bg-[var(--color-error-container)] text-[var(--color-error)]"
+        : "border-[var(--color-primary)] bg-[var(--color-primary-container)] text-[var(--color-primary)]";
+
+  return (
+    <DetailSection title="Phiếu thanh toán">
+      <div className="grid gap-3">
+        <div className={cx("rounded-[var(--radius-md)] border px-4 py-3", finalAmountTone)}>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.06em]">
+            {finalAmountLabel}
+          </p>
+          <p className="mt-1 text-[28px] font-bold leading-none">
+            {formatCurrency(Math.abs(result.finalAmount))}
+          </p>
+          {result.conclusion ? (
+            <p className="mt-2 text-[12px] font-semibold">{result.conclusion}</p>
+          ) : null}
+        </div>
+
+        <dl className="grid gap-x-4 sm:grid-cols-2">
+          <MoneyField label="Mã phiếu thanh toán" value={ticket.reconciliation?.code ?? "Chưa lập"} />
+          <MoneyField label="Trạng thái" value={ticket.reconciliation?.status ?? "Chưa cập nhật"} />
+          <MoneyField label="Tiền cọc gốc" value={formatCurrency(result.depositAmount)} />
+          <MoneyField label="Tỷ lệ hoàn" value={`${result.refundRate}%`} />
+          <MoneyField label="Tiền hoàn cơ bản" value={formatCurrency(result.baseRefund)} tone="success" />
+          <MoneyField label="Tổng khấu trừ" value={formatCurrency(result.totalDeductions)} tone="error" />
+        </dl>
+
+        {result.deductions.length > 0 ? (
+          <div className="overflow-hidden rounded-[var(--radius-sm)] border border-[var(--color-border)]">
+            <div className="grid grid-cols-[1fr_140px] bg-[var(--color-secondary)] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--color-on-secondary)]">
+              <span>Khoản khấu trừ kế toán</span>
+              <span className="text-right">Số tiền</span>
+            </div>
+            {result.deductions.map((deduction) => (
+              <div
+                key={deduction.id}
+                className="grid grid-cols-[1fr_140px] border-t border-[var(--color-border)] px-3 py-2 text-[12px]"
+              >
+                <span>{deduction.description}</span>
+                <span className="text-right font-semibold text-[var(--color-error)]">
+                  {formatCurrency(deduction.amount)}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </DetailSection>
+  );
+}
+
+function MoneyField({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: ReactNode;
+  tone?: "success" | "error";
+}) {
+  return (
+    <div className="grid grid-cols-[128px_1fr] gap-3 border-b border-[var(--color-border)] py-2 text-[12px] last:border-b-0 sm:last:border-b sm:[&:nth-last-child(-n+2)]:border-b-0">
+      <dt className="text-[var(--color-on-surface-secondary)]">{label}</dt>
+      <dd
+        className={cx(
+          "min-w-0 text-right font-bold text-[var(--color-on-surface)]",
+          tone === "success" && "text-[var(--color-success)]",
+          tone === "error" && "text-[var(--color-error)]",
+        )}
+      >
+        {value}
+      </dd>
     </div>
   );
 }

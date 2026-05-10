@@ -33,13 +33,16 @@ export function ContractFormPanel({
   onCancel,
   onSubmit,
 }: ContractFormPanelProps) {
+  const expectedOccupantCount = Math.max(record.expectedOccupantCount, 1);
+  const hasReachedOccupantLimit =
+    draft.occupants.length >= expectedOccupantCount;
   const canSubmit =
     draft.customerName.trim() &&
     draft.phone.trim() &&
     draft.roomCode.trim() &&
     draft.bedCodes.length > 0 &&
     draft.startDate &&
-    draft.occupants.length > 0 &&
+    draft.occupants.length === expectedOccupantCount &&
     draft.occupants.every(
       (occupant) =>
         occupant.fullName.trim() &&
@@ -97,6 +100,10 @@ export function ContractFormPanel({
   }
 
   function addOccupant() {
+    if (draft.occupants.length >= expectedOccupantCount) {
+      return;
+    }
+
     updateDraft("occupants", [
       ...draft.occupants,
       {
@@ -272,6 +279,8 @@ export function ContractFormPanel({
 
           <OccupantsSection
             draft={draft}
+            expectedOccupantCount={expectedOccupantCount}
+            hasReachedOccupantLimit={hasReachedOccupantLimit}
             onAddOccupant={addOccupant}
             onRemoveOccupant={removeOccupant}
             onUpdateOccupant={updateOccupant}
@@ -341,6 +350,8 @@ export function ContractFormPanel({
 
 type OccupantsSectionProps = {
   draft: ContractDraft;
+  expectedOccupantCount: number;
+  hasReachedOccupantLimit: boolean;
   onAddOccupant: () => void;
   onRemoveOccupant: (occupantId: string) => void;
   onUpdateOccupant: <Key extends keyof ContractOccupant>(
@@ -352,6 +363,8 @@ type OccupantsSectionProps = {
 
 function OccupantsSection({
   draft,
+  expectedOccupantCount,
+  hasReachedOccupantLimit,
   onAddOccupant,
   onRemoveOccupant,
   onUpdateOccupant,
@@ -363,7 +376,7 @@ function OccupantsSection({
           4. Danh sách người trong hợp đồng
         </h3>
         <span className="shrink-0 rounded-full bg-[var(--color-surface)] px-3 py-1 text-[11px] font-semibold text-[var(--color-primary)]">
-          Tổng: {draft.occupants.length}
+          Tổng: {draft.occupants.length} / {expectedOccupantCount}
         </span>
       </div>
 
@@ -452,7 +465,11 @@ function OccupantsSection({
         </div>
 
         <div className="mt-2 flex justify-end">
-          <ActionButton icon={Plus} onClick={onAddOccupant}>
+          <ActionButton
+            icon={Plus}
+            onClick={onAddOccupant}
+            disabled={hasReachedOccupantLimit}
+          >
             Thêm người ở
           </ActionButton>
         </div>
