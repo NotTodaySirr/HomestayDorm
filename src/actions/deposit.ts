@@ -65,6 +65,12 @@ export async function getRegistrationsForDeposit() {
     where: {
       branchId: branch.id,
       status: { in: ['CONSULTING', 'WAITING_VIEW', 'WAITLIST', 'COMPLETED'] },
+      // Chỉ lấy những phiếu đăng ký CHƯA có phiếu cọc nào ở trạng thái đang xử lý
+      deposits: {
+        none: {
+          status: { in: ['PENDING', 'PAID', 'CONFIRMED'] }
+        }
+      }
     },
     include: {
       consultingRooms: {
@@ -126,78 +132,86 @@ export async function getDepositTickets() {
 // ===== MUTATIONS =====
 
 export async function createDepositTicket(formData: FormData) {
-  const branch = await getBranch();
-  if (!branch) throw new Error('Không tìm thấy chi nhánh');
+  try {
+    const branch = await getBranch();
+    if (!branch) throw new Error('Không tìm thấy chi nhánh');
 
-  const registrationId = formData.get('registrationId') as string;
-  const bedIdsRaw = formData.get('bedIds') as string;
-  const bedIds = bedIdsRaw.split(',').filter(Boolean);
+    const registrationId = formData.get('registrationId') as string;
+    const bedIdsRaw = formData.get('bedIds') as string;
+    const bedIds = bedIdsRaw.split(',').filter(Boolean);
 
-  if (!registrationId) throw new Error('Chưa chọn phiếu đăng ký');
-  if (bedIds.length === 0) throw new Error('Chưa chọn giường nào');
+    if (!registrationId) throw new Error('Chưa chọn phiếu đăng ký');
+    if (bedIds.length === 0) throw new Error('Chưa chọn giường nào');
 
-  const paymentDeadline = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const paymentDeadline = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-  await prisma.$transaction(async (tx) => {
-    // 1. Đọc và kiểm tra trạng thái giường NGAY TRONG transaction
-    const beds = await tx.bed.findMany({
-      where: { id: { in: bedIds }, status: 'AVAILABLE' },
-    });
+    await prisma.$transaction(async (tx) => {
+      // 1. Đọc và kiểm tra trạng thái giường NGAY TRONG transaction
+      const beds = await tx.bed.findMany({
+        where: { id: { in: bedIds }, status: 'AVAILABLE' },
+      });
 
-    if (beds.length !== bedIds.length) {
-      throw new Error('Một hoặc nhiều giường đã không còn trống. Vui lòng chọn lại.');
-    }
-
-    // 1.5 Kiểm tra xem phiếu đăng ký đã có cọc chưa
-    const existingDeposit = await tx.depositTicket.findFirst({
-      where: {
-        registrationId,
-        status: { in: ['PENDING', 'PAID', 'CONFIRMED'] }
+      if (beds.length !== bedIds.length) {
+        throw new Error('Một hoặc nhiều giường đã không còn trống. Vui lòng chọn lại.');
       }
-    });
 
-    if (existingDeposit) {
-      throw new Error('Phiếu đăng ký này đã có phiếu đặt cọc. Không thể tạo thêm.');
-    }
+      // 1.5 Kiểm tra xem phiếu đăng ký đã có cọc chưa
+      const existingDeposit = await tx.depositTicket.findFirst({
+        where: {
+          registrationId,
+          status: { in: ['PENDING', 'PAID', 'CONFIRMED'] }
+        }
+      });
 
-    // 2. Tính tổng tiền cọc
-    const depositAmount = beds.reduce((sum, bed) => sum + bed.price * 2, 0);
+      if (existingDeposit) {
+        throw new Error('Phiếu đăng ký này đã có phiếu đặt cọc. Không thể tạo thêm.');
+      }
 
-    // 3. Update giường sang trạng thái DEPOSITED (Cơ chế đếm count chặn Race Condition kép)
-    const updateBedsResult = await tx.bed.updateMany({
-      where: { id: { in: bedIds }, status: 'AVAILABLE' },
-      data: { status: 'DEPOSITED' },
-    });
+      // 2. Tính tổng tiền cọc
+      const depositAmount = beds.reduce((sum, bed) => sum + bed.price * 2, 0);
 
-    if (updateBedsResult.count !== bedIds.length) {
-      throw new Error('Một hoặc nhiều giường đã bị người khác đặt trong tích tắc. Vui lòng thử lại.');
-    }
+      // 3. Update giường sang trạng thái DEPOSITED (Cơ chế đếm count chặn Race Condition kép)
+      const updateBedsResult = await tx.bed.updateMany({
+        where: { id: { in: bedIds }, status: 'AVAILABLE' },
+        data: { status: 'DEPOSITED' },
+      });
 
-    // 4. Tạo phiếu cọc
-    const currentUserId = await getCurrentUserId();
-    await tx.depositTicket.create({
-      data: {
-        registrationId,
-        branchId: branch.id,
-        depositAmount,
-        paymentDeadline,
-        status: 'PENDING',
-        createdById: currentUserId,
-        details: {
-          create: bedIds.map((bedId) => ({ bedId })),
+      if (updateBedsResult.count !== bedIds.length) {
+        throw new Error('Một hoặc nhiều giường đã bị người khác đặt trong tích tắc. Vui lòng thử lại.');
+      }
+
+      // 4. Tạo phiếu cọc
+      const currentUserId = await getCurrentUserId();
+      await tx.depositTicket.create({
+        data: {
+          registrationId,
+          branchId: branch.id,
+          depositAmount,
+          paymentDeadline,
+          status: 'PENDING',
+          createdById: currentUserId,
+          details: {
+            create: bedIds.map((bedId) => ({ bedId })),
+          },
         },
-      },
+      });
+
+      // 5. Hoàn thành phiếu đăng ký
+      await tx.registrationTicket.update({
+        where: { id: registrationId },
+        data: { status: 'COMPLETED' },
+      });
     });
 
-    // 5. Hoàn thành phiếu đăng ký
-    await tx.registrationTicket.update({
-      where: { id: registrationId },
-      data: { status: 'COMPLETED' },
-    });
-  });
-
-  revalidatePath('/dashboard/deposits');
-  revalidatePath('/dashboard/registrations');
+    revalidatePath('/dashboard/registrations');
+    return { success: true };
+  } catch (error) {
+    console.error('Error in createDepositTicket:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Đã có lỗi xảy ra' 
+    };
+  }
 }
 
 export async function markDepositPaid(depositId: string, formData: FormData) {

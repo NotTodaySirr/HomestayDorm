@@ -85,8 +85,14 @@ export const CreateDepositView: React.FC<Props> = ({ rooms, registrations }) => 
       const formData = new FormData();
       formData.set('registrationId', selectedRegId);
       formData.set('bedIds', Array.from(selectedBedIds).join(','));
-      await createDepositTicket(formData);
-      router.push('/dashboard/registrations');
+      
+      const result = await createDepositTicket(formData);
+      
+      if (result.success) {
+        router.push('/dashboard/registrations');
+      } else {
+        alert(result.error || 'Đã có lỗi xảy ra khi tạo phiếu đặt cọc');
+      }
     });
   };
 
