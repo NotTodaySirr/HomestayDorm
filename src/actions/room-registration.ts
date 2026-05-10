@@ -3,13 +3,37 @@
 import prisma from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import nodemailer from 'nodemailer'; // <-- Đã chuyển import lên trên cùng
+import { cookies } from 'next/headers';
+import { decrypt } from '@/lib/session';
 
-// Mocked branch code for the demo
-const CURRENT_BRANCH_CODE = 'CN1';
+// Helper function to get current user ID from session
+// Kiểm tra user thực sự tồn tại trong DB để tránh lỗi FK khi dùng AUTH_BYPASS
+async function getCurrentUserId(): Promise<string | null> {
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get('session')?.value;
+  if (!sessionToken) return null;
+  
+  const session = await decrypt(sessionToken);
+  const userId = session?.userId;
+  if (!userId) return null;
+
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+  return user?.id || null;
+}
 
 async function getBranch() {
+  const currentUserId = await getCurrentUserId();
+  if (currentUserId) {
+    const user = await prisma.user.findUnique({
+      where: { id: currentUserId },
+      include: { branch: true }
+    });
+    if (user?.branch) return user.branch;
+  }
+  
+  // Fallback cho môi trường test/demo
   return prisma.branch.findUnique({
-    where: { code: CURRENT_BRANCH_CODE }
+    where: { code: 'CN1' }
   });
 }
 
@@ -90,6 +114,8 @@ export async function createRegistrationTicket(formData: FormData) {
   const roomIdsRaw = formData.get('roomIds') as string | null;
   const roomIds = roomIdsRaw ? roomIdsRaw.split(',').filter(Boolean) : [];
 
+  const currentUserId = await getCurrentUserId();
+
   await prisma.registrationTicket.create({
     data: {
       branchId: branch.id,
@@ -111,6 +137,7 @@ export async function createRegistrationTicket(formData: FormData) {
       contactChannel: contactChannel || undefined,
       additionalPreferences: additionalPreferences || undefined,
       status: 'CONSULTING',
+      createdById: currentUserId,
       
       consultingRooms: {
         connect: roomIds.map((id) => ({ id }))
@@ -186,7 +213,7 @@ export async function createViewingAppointment(registrationId: string, formData:
   const roomIds = formData.getAll('roomIds') as string[];
   const meetingLocation = formData.get('meetingLocation') as string | null;
 
-  const defaultAdmin = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
+  const defaultAdmin = await prisma.user.findFirst({ where: { role: 'ADMIN', branchId: branch.id } });
   const assigneeId = defaultAdmin?.id || null;
 
   if (roomIds.length > 0) {
@@ -283,7 +310,13 @@ export async function updateViewingResult(appointmentId: string, formData: FormD
   revalidatePath('/dashboard/registrations');
 }
 
+const VALID_REGISTRATION_STATUSES = ['CONSULTING', 'WAITING_VIEW', 'WAITLIST', 'COMPLETED', 'CANCELLED'];
+
 export async function updateRegistrationStatus(registrationId: string, status: string, note?: string) {
+  if (!VALID_REGISTRATION_STATUSES.includes(status)) {
+    throw new Error(`Trạng thái không hợp lệ: ${status}`);
+  }
+
   const dataToUpdate: any = { status };
   
   if (note) {
@@ -316,6 +349,11 @@ export async function getRegistrationById(id: string) {
 export async function openSingleBed(bedId: string) {
   const bed = await prisma.bed.findUnique({ where: { id: bedId } });
   if (!bed) throw new Error('Không tìm thấy giường');
+
+  const ALLOWED_STATUSES = ['AVAILABLE', 'DEPOSITED'];
+  if (!ALLOWED_STATUSES.includes(bed.status)) {
+    throw new Error(`Không thể mở giường đang ở trạng thái "${bed.status}". Chỉ cho phép mở giường trống hoặc đã đặt cọc.`);
+  }
 
   await prisma.bed.update({
     where: { id: bedId },

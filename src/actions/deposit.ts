@@ -2,12 +2,38 @@
 
 import prisma from '@/lib/db';
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
+import { decrypt } from '@/lib/session';
 
-const CURRENT_BRANCH_CODE = 'CN1';
+// Helper function to get current user ID from session
+// Kiểm tra user thực sự tồn tại trong DB để tránh lỗi FK khi dùng AUTH_BYPASS
+async function getCurrentUserId(): Promise<string | null> {
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get('session')?.value;
+  if (!sessionToken) return null;
+  
+  const session = await decrypt(sessionToken);
+  const userId = session?.userId;
+  if (!userId) return null;
+
+  // Xác nhận user tồn tại trong DB (chặn lỗi FK với mock-user)
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+  return user?.id || null;
+}
 
 async function getBranch() {
+  const currentUserId = await getCurrentUserId();
+  if (currentUserId) {
+    const user = await prisma.user.findUnique({
+      where: { id: currentUserId },
+      include: { branch: true }
+    });
+    if (user?.branch) return user.branch;
+  }
+  
+  // Fallback cho môi trường test/demo nếu user không có branchId
   return prisma.branch.findUnique({
-    where: { code: CURRENT_BRANCH_CODE }
+    where: { code: 'CN1' }
   });
 }
 
@@ -39,6 +65,12 @@ export async function getRegistrationsForDeposit() {
     where: {
       branchId: branch.id,
       status: { in: ['CONSULTING', 'WAITING_VIEW', 'WAITLIST', 'COMPLETED'] },
+      // Chỉ lấy những phiếu đăng ký CHƯA có phiếu cọc nào ở trạng thái đang xử lý
+      deposits: {
+        none: {
+          status: { in: ['PENDING', 'PAID', 'CONFIRMED'] }
+        }
+      }
     },
     include: {
       consultingRooms: {
@@ -100,54 +132,86 @@ export async function getDepositTickets() {
 // ===== MUTATIONS =====
 
 export async function createDepositTicket(formData: FormData) {
-  const branch = await getBranch();
-  if (!branch) throw new Error('Không tìm thấy chi nhánh');
+  try {
+    const branch = await getBranch();
+    if (!branch) throw new Error('Không tìm thấy chi nhánh');
 
-  const registrationId = formData.get('registrationId') as string;
-  const bedIdsRaw = formData.get('bedIds') as string;
-  const bedIds = bedIdsRaw.split(',').filter(Boolean);
+    const registrationId = formData.get('registrationId') as string;
+    const bedIdsRaw = formData.get('bedIds') as string;
+    const bedIds = bedIdsRaw.split(',').filter(Boolean);
 
-  if (!registrationId) throw new Error('Chưa chọn phiếu đăng ký');
-  if (bedIds.length === 0) throw new Error('Chưa chọn giường nào');
+    if (!registrationId) throw new Error('Chưa chọn phiếu đăng ký');
+    if (bedIds.length === 0) throw new Error('Chưa chọn giường nào');
 
-  const beds = await prisma.bed.findMany({
-    where: { id: { in: bedIds }, status: 'AVAILABLE' },
-  });
+    const paymentDeadline = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-  if (beds.length !== bedIds.length) {
-    throw new Error('Một hoặc nhiều giường đã không còn trống. Vui lòng chọn lại.');
-  }
+    await prisma.$transaction(async (tx) => {
+      // 1. Đọc và kiểm tra trạng thái giường NGAY TRONG transaction
+      const beds = await tx.bed.findMany({
+        where: { id: { in: bedIds }, status: 'AVAILABLE' },
+      });
 
-  const depositAmount = beds.reduce((sum, bed) => sum + bed.price * 2, 0);
-  const paymentDeadline = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      if (beds.length !== bedIds.length) {
+        throw new Error('Một hoặc nhiều giường đã không còn trống. Vui lòng chọn lại.');
+      }
 
-  await prisma.$transaction(async (tx) => {
-    await tx.depositTicket.create({
-      data: {
-        registrationId,
-        branchId: branch.id,
-        depositAmount,
-        paymentDeadline,
-        status: 'PENDING',
-        details: {
-          create: bedIds.map((bedId) => ({ bedId })),
+      // 1.5 Kiểm tra xem phiếu đăng ký đã có cọc chưa
+      const existingDeposit = await tx.depositTicket.findFirst({
+        where: {
+          registrationId,
+          status: { in: ['PENDING', 'PAID', 'CONFIRMED'] }
+        }
+      });
+
+      if (existingDeposit) {
+        throw new Error('Phiếu đăng ký này đã có phiếu đặt cọc. Không thể tạo thêm.');
+      }
+
+      // 2. Tính tổng tiền cọc
+      const depositAmount = beds.reduce((sum, bed) => sum + bed.price * 2, 0);
+
+      // 3. Update giường sang trạng thái DEPOSITED (Cơ chế đếm count chặn Race Condition kép)
+      const updateBedsResult = await tx.bed.updateMany({
+        where: { id: { in: bedIds }, status: 'AVAILABLE' },
+        data: { status: 'DEPOSITED' },
+      });
+
+      if (updateBedsResult.count !== bedIds.length) {
+        throw new Error('Một hoặc nhiều giường đã bị người khác đặt trong tích tắc. Vui lòng thử lại.');
+      }
+
+      // 4. Tạo phiếu cọc
+      const currentUserId = await getCurrentUserId();
+      await tx.depositTicket.create({
+        data: {
+          registrationId,
+          branchId: branch.id,
+          depositAmount,
+          paymentDeadline,
+          status: 'PENDING',
+          createdById: currentUserId,
+          details: {
+            create: bedIds.map((bedId) => ({ bedId })),
+          },
         },
-      },
+      });
+
+      // 5. Hoàn thành phiếu đăng ký
+      await tx.registrationTicket.update({
+        where: { id: registrationId },
+        data: { status: 'COMPLETED' },
+      });
     });
 
-    await tx.bed.updateMany({
-      where: { id: { in: bedIds } },
-      data: { status: 'DEPOSITED' },
-    });
-
-    await tx.registrationTicket.update({
-      where: { id: registrationId },
-      data: { status: 'COMPLETED' },
-    });
-  });
-
-  revalidatePath('/dashboard/deposits');
-  revalidatePath('/dashboard/registrations');
+    revalidatePath('/dashboard/registrations');
+    return { success: true };
+  } catch (error) {
+    console.error('Error in createDepositTicket:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Đã có lỗi xảy ra' 
+    };
+  }
 }
 
 export async function markDepositPaid(depositId: string, formData: FormData) {
@@ -169,6 +233,7 @@ export async function markDepositPaid(depositId: string, formData: FormData) {
       },
     });
 
+    const currentUserId = await getCurrentUserId();
     await tx.payment.create({
       data: {
         depositTicketId: depositId,
@@ -182,6 +247,7 @@ export async function markDepositPaid(depositId: string, formData: FormData) {
         content: `Thanh toán tiền cọc — Phiếu ${depositId.slice(0, 8).toUpperCase()}`,
         note: note || undefined,
         proofUrl: proofUrl || undefined, 
+        staffId: currentUserId,
       },
     });
   });
@@ -198,12 +264,15 @@ export async function confirmDeposit(depositId: string) {
   if (!deposit) throw new Error('Phiếu cọc không tồn tại');
   if (deposit.status !== 'PAID') throw new Error('Phiếu cọc chưa được thanh toán');
 
+  const currentUserId = await getCurrentUserId();
+
   await prisma.$transaction(async (tx) => {
     await tx.depositTicket.update({
       where: { id: depositId },
       data: {
         status: 'CONFIRMED',
         confirmedAt: new Date(),
+        confirmedById: currentUserId,
       },
     });
 

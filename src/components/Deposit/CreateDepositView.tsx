@@ -85,8 +85,14 @@ export const CreateDepositView: React.FC<Props> = ({ rooms, registrations }) => 
       const formData = new FormData();
       formData.set('registrationId', selectedRegId);
       formData.set('bedIds', Array.from(selectedBedIds).join(','));
-      await createDepositTicket(formData);
-      router.push('/dashboard/deposits');
+      
+      const result = await createDepositTicket(formData);
+      
+      if (result.success) {
+        router.push('/dashboard/registrations');
+      } else {
+        alert(result.error || 'Đã có lỗi xảy ra khi tạo phiếu đặt cọc');
+      }
     });
   };
 
@@ -290,7 +296,7 @@ export const CreateDepositView: React.FC<Props> = ({ rooms, registrations }) => 
 
         {/* Actions */}
         <div className="pt-4 mt-4 border-t border-border flex justify-between items-center">
-          <a href="/dashboard/deposits" className="px-3 py-2 border border-border rounded-[5px] text-[12px] font-semibold hover:bg-secondary transition-colors">
+          <a href="/dashboard/registrations" className="px-3 py-2 border border-border rounded-[5px] text-[12px] font-semibold hover:bg-secondary transition-colors">
             ← Quay lại
           </a>
           <button

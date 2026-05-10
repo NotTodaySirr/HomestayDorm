@@ -22,10 +22,29 @@ import type {
   TransactionType,
 } from '@/lib/payment-slips/types';
 
-const CURRENT_BRANCH_CODE = 'CN1';
+// Helper function to get current user ID from session
+async function getCurrentUserId(): Promise<string | null> {
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get('session')?.value;
+  if (!sessionToken) return null;
+  
+  const session = await decrypt(sessionToken);
+  return session?.userId || null;
+}
 
 async function getBranch() {
-  return prisma.branch.findUnique({ where: { code: CURRENT_BRANCH_CODE } });
+  const currentUserId = await getCurrentUserId();
+  if (currentUserId) {
+    const user = await prisma.user.findUnique({
+      where: { id: currentUserId },
+      include: { branch: true }
+    });
+    if (user?.branch) return user.branch;
+  }
+  
+  return prisma.branch.findUnique({
+    where: { code: 'CN1' }
+  });
 }
 
 function toDateString(value: Date | string | null | undefined) {
@@ -547,7 +566,11 @@ export async function recordPaymentTransaction(
     revalidatePath('/dashboard/check-in-contracts');
     revalidatePath('/dashboard/reports/revenue');
 
-    return { success: true, slip: mapPaymentSlip(updated!) };
+    if (!updated) {
+      return { success: false, error: 'Không thể tải lại phiếu đối soát sau khi ghi nhận giao dịch' };
+    }
+
+    return { success: true, slip: mapPaymentSlip(updated) };
   } catch (error) {
     console.error('Error recording payment transaction:', error);
     return { success: false, error: 'Không thể ghi nhận giao dịch' };
@@ -573,6 +596,13 @@ export async function confirmNoTransaction(
     if (ticket.finalAmount !== 0) {
       return { success: false, error: 'Phiếu này vẫn còn phát sinh giao dịch thanh toán' };
     }
+
+    // Bug: Hàm này chỉ đọc lại data mà KHÔNG update trạng thái Return Ticket
+    // Cần chuyển trạng thái để luồng nghiệp vụ đi tiếp (sang bước cập nhật phòng/giường)
+    await prisma.returnRoomTicket.update({
+      where: { id: ticket.returnRoomTicketId },
+      data: { status: 'CUSTOMER_CONFIRMED' },
+    });
 
     const updated = await prisma.returnRoomTicket.findUnique({
       where: { id: ticket.returnRoomTicketId },
