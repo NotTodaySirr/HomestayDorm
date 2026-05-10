@@ -122,6 +122,7 @@ export const returnRoomTickets: ReturnRoomTicket[] = [
     },
     handoverAssets: sharedAssets,
     reconciliation: {
+      id: "reconciliation-001",
       code: "PDS001",
       status: "Chờ kế toán xử lý",
       hygieneStatus: "passed",
@@ -171,6 +172,7 @@ export const returnRoomTickets: ReturnRoomTicket[] = [
     },
     handoverAssets: sharedAssets,
     reconciliation: {
+      id: "reconciliation-002",
       code: "PDS002",
       status: "Đã có kết quả tính toán",
       hygieneStatus: "failed",
@@ -193,6 +195,7 @@ export const returnRoomTickets: ReturnRoomTicket[] = [
       totalDeductions: 800000,
       finalAmount: 2700000,
       conclusion: "Khách được hoàn cọc",
+      settlementCompleted: false,
       deductions: [
         {
           id: "deduction-cleaning",
@@ -250,6 +253,7 @@ export const returnRoomTickets: ReturnRoomTicket[] = [
     contractedBedCodes: ["Bed 01", "Bed 02"],
     handoverAssets: sharedAssets,
     reconciliation: {
+      id: "reconciliation-003",
       code: "PDS003",
       status: "Khách đã xác nhận",
       hygieneStatus: "passed",
@@ -265,6 +269,7 @@ export const returnRoomTickets: ReturnRoomTicket[] = [
       totalDeductions: 0,
       finalAmount: 4500000,
       conclusion: "Khách được hoàn cọc toàn bộ",
+      settlementCompleted: false,
       deductions: [],
     },
     customerConfirmation: {
@@ -302,6 +307,7 @@ export const returnRoomTickets: ReturnRoomTicket[] = [
     },
     handoverAssets: sharedAssets,
     reconciliation: {
+      id: "reconciliation-004",
       code: "PDS004",
       status: "Cần kiểm tra lại",
       hygieneStatus: "passed",
@@ -324,6 +330,7 @@ export const returnRoomTickets: ReturnRoomTicket[] = [
       totalDeductions: 150000,
       finalAmount: 3650000,
       conclusion: "Khách được hoàn cọc sau khấu trừ",
+      settlementCompleted: false,
       deductions: [
         {
           id: "deduction-keycard",
@@ -369,6 +376,7 @@ export const returnRoomTickets: ReturnRoomTicket[] = [
     },
     handoverAssets: sharedAssets,
     reconciliation: {
+      id: "reconciliation-005",
       code: "PDS005",
       status: "Hoàn tất",
       hygieneStatus: "passed",
@@ -384,6 +392,7 @@ export const returnRoomTickets: ReturnRoomTicket[] = [
       totalDeductions: 0,
       finalAmount: 4000000,
       conclusion: "Khách được hoàn cọc toàn bộ",
+      settlementCompleted: true,
       deductions: [],
     },
     customerConfirmation: {

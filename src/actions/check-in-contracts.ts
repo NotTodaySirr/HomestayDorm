@@ -904,6 +904,11 @@ export async function finalizeReturnRoomStatus(
           },
         },
         bedUpdates: true,
+        reconciliation: {
+          include: {
+            payments: true,
+          },
+        },
       },
     });
 
@@ -936,6 +941,34 @@ export async function finalizeReturnRoomStatus(
       return {
         success: false,
         error: 'Vui lòng chọn ít nhất một giường cần cập nhật.',
+      };
+    }
+
+    const reconciliation = ticket.reconciliation;
+    const finalAmount = reconciliation?.finalAmount;
+    const hasCompletedSettlement =
+      finalAmount === 0
+        ? reconciliation?.status === 'NO_TRANSACTION_CONFIRMED'
+        : reconciliation?.payments.some((payment) => payment.status === 'COMPLETED') ?? false;
+
+    if (finalAmount == null) {
+      return {
+        success: false,
+        error: 'Payment calculation is not completed yet.',
+      };
+    }
+
+    if (ticket.customerConfirmationStatus !== 'AGREED') {
+      return {
+        success: false,
+        error: 'Customer must confirm the payment result before room finalization.',
+      };
+    }
+
+    if (!hasCompletedSettlement) {
+      return {
+        success: false,
+        error: 'Payment/refund settlement must be completed before room finalization.',
       };
     }
 
@@ -1141,6 +1174,24 @@ function mapRoomFinalizationStatus(status: string) {
   return 'notStarted';
 }
 
+type SettlementReconciliation = {
+  finalAmount?: number | null;
+  status?: string | null;
+  payments?: Array<{ status?: string | null }>;
+};
+
+function isReconciliationSettlementCompleted(reconciliation: SettlementReconciliation) {
+  if (reconciliation.finalAmount == null) {
+    return false;
+  }
+
+  if (reconciliation.finalAmount === 0) {
+    return reconciliation.status === 'NO_TRANSACTION_CONFIRMED';
+  }
+
+  return reconciliation.payments?.some((payment) => payment.status === 'COMPLETED') ?? false;
+}
+
 function mapReturnRoomTicket(ticket: any): import('@/lib/return-room-tickets/types').ReturnRoomTicket {
   const representative = ticket.contract.occupants?.find((occupant: any) => occupant.isRepresentative);
   const firstBedDetail = ticket.contract.bedDetails?.[0];
@@ -1224,6 +1275,7 @@ function mapReturnRoomTicket(ticket: any): import('@/lib/return-room-tickets/typ
           totalDeductions: ticket.reconciliation.totalDeductions ?? 0,
           finalAmount: ticket.reconciliation.finalAmount,
           conclusion: ticket.reconciliation.conclusion || '',
+          settlementCompleted: isReconciliationSettlementCompleted(ticket.reconciliation),
           deductions: ticket.reconciliation.details
             .filter((detail: any) => detail.source === 'accounting')
             .map((detail: any) => ({
@@ -1297,6 +1349,7 @@ const returnRoomTicketInclude = {
   reconciliation: {
     include: {
       details: true,
+      payments: true,
     },
   },
   bedUpdates: {

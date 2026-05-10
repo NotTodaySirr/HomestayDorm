@@ -10,7 +10,9 @@ export type PaymentSlipStatus =
   | "completedRefund"
   | "completedExtraPayment";
 
-export type PaymentQueue = "all" | "refund" | "debt";
+export type PaymentQueue = "all" | "refund" | "debt" | "completed";
+
+export type PaymentSlipStatusFilter = PaymentSlipStatus | "all" | "completed";
 
 export type RefundPolicyCode =
   | "unsignedContract"

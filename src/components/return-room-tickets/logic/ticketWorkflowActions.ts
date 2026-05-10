@@ -13,6 +13,7 @@ export function applyReconciliationSubmission(
     ...ticket,
     status: "waitingAccounting",
     reconciliation: {
+      id: ticket.reconciliation?.id ?? `${ticket.id}-reconciliation`,
       code: ticket.reconciliation?.code ?? createReconciliationCode(ticket),
       status: "Chờ kế toán xử lý",
       hygieneStatus: submission.hygieneStatus,

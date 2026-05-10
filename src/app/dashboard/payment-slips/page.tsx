@@ -24,7 +24,7 @@ export default async function PaymentSlipsPage({
 function getQueue(value: string | string[] | undefined): PaymentQueue {
   const queue = Array.isArray(value) ? value[0] : value;
 
-  if (queue === "refund" || queue === "debt") {
+  if (queue === "refund" || queue === "debt" || queue === "completed") {
     return queue;
   }
 

@@ -134,10 +134,11 @@ export function getPrimaryAction(ticket: ReturnRoomTicket) {
   }
 
   if (
-    ticket.status === "customerConfirmed" ||
-    ticket.status === "waitingDepositRefund" ||
-    ticket.status === "waitingExtraPayment" ||
-    (ticket.status === "completed" && ticket.roomFinalization.status === "notStarted")
+    ticket.roomFinalization.status === "notStarted" &&
+    (ticket.status === "customerConfirmed" ||
+      ticket.status === "waitingDepositRefund" ||
+      ticket.status === "waitingExtraPayment" ||
+      ticket.status === "completed")
   ) {
     return "Cập nhật phòng/giường";
   }

@@ -27,8 +27,14 @@ export function canUpdateRoomBeds(ticket: ReturnRoomTicket) {
     ticket.status === "waitingDepositRefund" ||
     ticket.status === "waitingExtraPayment" ||
     ticket.status === "completed";
+  const settlementCompleted =
+    ticket.accountingResult?.settlementCompleted ?? false;
 
-  return allowedStatus && ticket.roomFinalization.status === "notStarted";
+  return (
+    allowedStatus &&
+    ticket.roomFinalization.status === "notStarted" &&
+    settlementCompleted
+  );
 }
 
 export function buildRoomBedModalData(ticket: ReturnRoomTicket): RoomBedModalData {

@@ -75,9 +75,14 @@ function mapPaymentSlipStatus(ticket: any, payment?: any): PaymentSlipStatus {
 
   const rrStatus = ticket.returnRoomTicket.status;
 
+  if (ticket.status === 'NO_TRANSACTION_CONFIRMED') {
+    return 'noTransaction';
+  }
+
   if (rrStatus === 'COMPLETED') {
-    if (ticket.finalAmount === 0) return 'noTransaction';
-    return (ticket.finalAmount ?? 0) > 0 ? 'completedRefund' : 'completedExtraPayment';
+    if (ticket.finalAmount == null) return 'pendingAccounting';
+    if (ticket.finalAmount === 0) return 'customerConfirmed';
+    return ticket.finalAmount > 0 ? 'waitingDepositRefund' : 'waitingExtraPayment';
   }
 
   if (rrStatus === 'NEEDS_RECHECK') return 'needReview';
@@ -499,8 +504,8 @@ export async function recordPaymentTransaction(
     });
 
     if (!ticket) return { success: false, error: 'Không tìm thấy phiếu đối soát' };
-    if (ticket.returnRoomTicket.status === 'COMPLETED') {
-      return { success: false, error: 'Phiếu này đã hoàn tất' };
+    if (ticket.payments.some((payment: { status?: string | null }) => payment.status === 'COMPLETED')) {
+      return { success: false, error: 'Payment transaction has already been recorded.' };
     }
     if (ticket.returnRoomTicket.customerConfirmationStatus !== 'AGREED') {
       return { success: false, error: 'Khách chưa xác nhận kết quả đối soát' };
@@ -587,9 +592,6 @@ export async function confirmNoTransaction(
     });
 
     if (!ticket) return { success: false, error: 'Không tìm thấy phiếu đối soát' };
-    if (ticket.returnRoomTicket.status === 'COMPLETED') {
-      return { success: false, error: 'Phiếu này đã hoàn tất' };
-    }
     if (ticket.returnRoomTicket.customerConfirmationStatus !== 'AGREED') {
       return { success: false, error: 'Khách chưa xác nhận kết quả đối soát' };
     }
@@ -597,11 +599,16 @@ export async function confirmNoTransaction(
       return { success: false, error: 'Phiếu này vẫn còn phát sinh giao dịch thanh toán' };
     }
 
-    // Bug: Hàm này chỉ đọc lại data mà KHÔNG update trạng thái Return Ticket
-    // Cần chuyển trạng thái để luồng nghiệp vụ đi tiếp (sang bước cập nhật phòng/giường)
-    await prisma.returnRoomTicket.update({
-      where: { id: ticket.returnRoomTicketId },
-      data: { status: 'CUSTOMER_CONFIRMED' },
+    await prisma.$transaction(async (tx) => {
+      await tx.reconciliationTicket.update({
+        where: { id: reconciliationId },
+        data: { status: 'NO_TRANSACTION_CONFIRMED' },
+      });
+
+      await tx.returnRoomTicket.update({
+        where: { id: ticket.returnRoomTicketId },
+        data: { status: 'CUSTOMER_CONFIRMED' },
+      });
     });
 
     const updated = await prisma.returnRoomTicket.findUnique({

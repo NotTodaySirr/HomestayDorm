@@ -44,13 +44,18 @@ export function TicketDetailPanel({
   const shouldConfirmCustomer =
     ticket.status === "accountingResultReady" ||
     ticket.status === "waitingCustomerConfirmation";
-  const shouldUpdateRoom =
-    ticket.status === "customerConfirmed" ||
-    ticket.status === "waitingDepositRefund" ||
-    ticket.status === "waitingExtraPayment" ||
-    (ticket.status === "completed" && ticket.roomFinalization.status === "notStarted");
   const shouldRecheck = ticket.status === "needsRecheck";
   const canOpenRoomBedModal = canUpdateRoomBeds(ticket);
+  const shouldUpdateRoom =
+    ticket.roomFinalization.status === "notStarted" &&
+    (ticket.status === "customerConfirmed" ||
+      ticket.status === "waitingDepositRefund" ||
+      ticket.status === "waitingExtraPayment" ||
+      ticket.status === "completed");
+  const roomUpdateBlockedReason =
+    shouldUpdateRoom && !canOpenRoomBedModal
+      ? "Đang chờ kế toán hoàn tất thanh toán/hoàn cọc."
+      : null;
   const shouldShowPaymentSlipResult =
     ticket.status === "waitingCustomerConfirmation" && ticket.accountingResult;
 
@@ -78,14 +83,28 @@ export function TicketDetailPanel({
       ) : null}
 
       {shouldUpdateRoom ? (
-        <ActionButton
-          icon={DoorOpen}
-          variant="primary"
-          onClick={onStartRoomUpdate}
-          disabled={!canOpenRoomBedModal}
+        <div
+          className="flex max-w-full flex-col items-end gap-1"
+          title={
+            roomUpdateBlockedReason
+              ? "Chỉ có thể cập nhật phòng/giường sau khi kế toán ghi nhận hoàn cọc hoặc thanh toán thêm."
+              : undefined
+          }
         >
-          Cập nhật phòng/giường
-        </ActionButton>
+          <ActionButton
+            icon={DoorOpen}
+            variant="primary"
+            onClick={onStartRoomUpdate}
+            disabled={!canOpenRoomBedModal}
+          >
+            Cập nhật phòng/giường
+          </ActionButton>
+          {roomUpdateBlockedReason ? (
+            <p className="max-w-[240px] text-right text-[11px] leading-[1.35] text-[var(--color-warning)]">
+              {roomUpdateBlockedReason}
+            </p>
+          ) : null}
+        </div>
       ) : null}
 
       {shouldRecheck ? (

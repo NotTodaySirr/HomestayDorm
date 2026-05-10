@@ -99,6 +99,7 @@ export type AccountingResult = {
   finalAmount: number;
   conclusion: string;
   deductions: Deduction[];
+  settlementCompleted: boolean;
 };
 
 export type CustomerConfirmation = {

@@ -5,14 +5,14 @@ import {
   paymentStatusLabels,
   paymentStatusOptions,
 } from "@/components/payment-slips/logic/filters";
-import type { PaymentSlipStatus } from "@/lib/payment-slips/types";
+import type { PaymentSlipStatusFilter } from "@/lib/payment-slips/types";
 import { cx } from "./ui";
 
 type PaymentSlipToolbarProps = {
   search: string;
-  status: PaymentSlipStatus | "all";
+  status: PaymentSlipStatusFilter;
   onSearchChange: (value: string) => void;
-  onStatusChange: (status: PaymentSlipStatus | "all") => void;
+  onStatusChange: (status: PaymentSlipStatusFilter) => void;
 };
 
 export function PaymentSlipToolbar({
@@ -64,7 +64,7 @@ export function PaymentSlipToolbar({
           id="payment-slip-status"
           value={status}
           onChange={(event) =>
-            onStatusChange(event.target.value as PaymentSlipStatus | "all")
+            onStatusChange(event.target.value as PaymentSlipStatusFilter)
           }
           className="h-full bg-transparent text-[12px] outline-none"
         >
@@ -72,7 +72,9 @@ export function PaymentSlipToolbar({
             <option key={option} value={option}>
               {option === "all"
                 ? "Tất cả trạng thái"
-                : paymentStatusLabels[option]}
+                : option === "completed"
+                  ? "Hoàn tất"
+                  : paymentStatusLabels[option]}
             </option>
           ))}
         </select>

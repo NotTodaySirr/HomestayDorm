@@ -4,7 +4,7 @@ import {
 import type { PaymentQueue } from "@/lib/payment-slips/types";
 import { cx } from "./ui";
 
-const queueOrder: PaymentQueue[] = ["all", "refund", "debt"];
+const queueOrder: PaymentQueue[] = ["all", "refund", "debt", "completed"];
 
 type PaymentQueueTabsProps = {
   activeQueue: PaymentQueue;

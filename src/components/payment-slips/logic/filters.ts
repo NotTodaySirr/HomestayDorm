@@ -1,5 +1,10 @@
 import { calculateFinalAmount } from "./calculation";
-import type { PaymentQueue, PaymentSlip, PaymentSlipStatus } from "@/lib/payment-slips/types";
+import type {
+  PaymentQueue,
+  PaymentSlip,
+  PaymentSlipStatus,
+  PaymentSlipStatusFilter,
+} from "@/lib/payment-slips/types";
 
 export const paymentStatusLabels: Record<PaymentSlipStatus, string> = {
   pendingAccounting: "Chờ kế toán xử lý",
@@ -14,7 +19,7 @@ export const paymentStatusLabels: Record<PaymentSlipStatus, string> = {
   completedExtraPayment: "Hoàn tất",
 };
 
-export const paymentStatusOptions: Array<PaymentSlipStatus | "all"> = [
+export const paymentStatusOptions: PaymentSlipStatusFilter[] = [
   "all",
   "pendingAccounting",
   "calculated",
@@ -24,14 +29,14 @@ export const paymentStatusOptions: Array<PaymentSlipStatus | "all"> = [
   "partiallyPaid",
   "noTransaction",
   "needReview",
-  "completedRefund",
-  "completedExtraPayment",
+  "completed",
 ];
 
 export const paymentQueueLabels: Record<PaymentQueue, string> = {
   all: "Tất cả",
   refund: "Danh sách hoàn tiền",
   debt: "Công nợ thu thêm",
+  completed: "Hoàn tất",
 };
 
 export function countPaymentSlips(slips: PaymentSlip[]) {
@@ -46,8 +51,13 @@ export function countPaymentSlips(slips: PaymentSlip[]) {
 export function countPaymentSlipsByQueue(slips: PaymentSlip[]) {
   return {
     all: slips.length,
-    refund: slips.filter((slip) => getSlipFinalAmount(slip) > 0).length,
-    debt: slips.filter((slip) => getSlipFinalAmount(slip) < 0).length,
+    refund: slips.filter(
+      (slip) => getSlipFinalAmount(slip) > 0 && !isCompletedStatus(slip.status),
+    ).length,
+    debt: slips.filter(
+      (slip) => getSlipFinalAmount(slip) < 0 && !isCompletedStatus(slip.status),
+    ).length,
+    completed: slips.filter((slip) => isCompletedStatus(slip.status)).length,
   } satisfies Record<PaymentQueue, number>;
 }
 
@@ -55,7 +65,7 @@ export function filterPaymentSlips(
   slips: PaymentSlip[],
   filters: {
     search: string;
-    status: PaymentSlipStatus | "all";
+    status: PaymentSlipStatusFilter;
     queue: PaymentQueue;
   },
 ) {
@@ -63,16 +73,29 @@ export function filterPaymentSlips(
 
   return slips.filter((slip) => {
     const finalAmount = getSlipFinalAmount(slip);
+    const isCompleted = isCompletedStatus(slip.status);
 
-    if (filters.queue === "refund" && finalAmount <= 0) {
+    if (filters.queue === "refund" && (finalAmount <= 0 || isCompleted)) {
       return false;
     }
 
-    if (filters.queue === "debt" && finalAmount >= 0) {
+    if (filters.queue === "debt" && (finalAmount >= 0 || isCompleted)) {
       return false;
     }
 
-    if (filters.status !== "all" && slip.status !== filters.status) {
+    if (filters.queue === "completed" && !isCompleted) {
+      return false;
+    }
+
+    if (filters.status === "completed" && !isCompleted) {
+      return false;
+    }
+
+    if (
+      filters.status !== "all" &&
+      filters.status !== "completed" &&
+      slip.status !== filters.status
+    ) {
       return false;
     }
 

@@ -6,7 +6,7 @@ import {
 import type {
   PaymentQueue,
   PaymentSlip,
-  PaymentSlipStatus,
+  PaymentSlipStatusFilter,
 } from "@/lib/payment-slips/types";
 
 export function usePaymentSlipsWorkspace(
@@ -14,7 +14,7 @@ export function usePaymentSlipsWorkspace(
   initialQueue: PaymentQueue,
 ) {
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<PaymentSlipStatus | "all">("all");
+  const [status, setStatus] = useState<PaymentSlipStatusFilter>("all");
   const [queue, setQueue] = useState<PaymentQueue>(initialQueue);
 
   const queueCounts = useMemo(
