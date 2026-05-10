@@ -3,20 +3,37 @@
 import prisma from '@/lib/db';
 import type { RoomBedUpdateSubmission } from '@/lib/return-room-tickets/types';
 import { revalidatePath } from 'next/cache';
-
-const CURRENT_BRANCH_CODE = 'CN1';
-
-async function getBranch() {
-  return prisma.branch.findUnique({
-    where: { code: CURRENT_BRANCH_CODE }
-  });
-}
+import { cookies } from 'next/headers';
+import { decrypt } from '@/lib/session';
 
 // Helper function to get current user ID from session
-// TODO: Replace with actual session logic
+// Kiểm tra user thực sự tồn tại trong DB để tránh lỗi FK khi dùng AUTH_BYPASS
 async function getCurrentUserId(): Promise<string | null> {
-  // For now, return null. In production, get from session/auth
-  return null;
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get('session')?.value;
+  if (!sessionToken) return null;
+  
+  const session = await decrypt(sessionToken);
+  const userId = session?.userId;
+  if (!userId) return null;
+
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+  return user?.id || null;
+}
+
+async function getBranch() {
+  const currentUserId = await getCurrentUserId();
+  if (currentUserId) {
+    const user = await prisma.user.findUnique({
+      where: { id: currentUserId },
+      include: { branch: true }
+    });
+    if (user?.branch) return user.branch;
+  }
+  
+  return prisma.branch.findUnique({
+    where: { code: 'CN1' }
+  });
 }
 
 // ===== TYPES =====
@@ -400,6 +417,32 @@ export async function createContractFromDeposit(
       return { success: false, error: 'At least 1 occupant must be representative' };
     }
 
+    // 3.5 Validate Data Boundaries (Chống Bypass UI)
+    const depositAmt = Number(draft.depositAmount);
+    const rentAmt = Number(draft.monthlyRent);
+    const serviceAmt = Number(draft.serviceFee);
+
+    if (isNaN(depositAmt) || depositAmt < 0) return { success: false, error: 'Tiền cọc không hợp lệ' };
+    if (isNaN(rentAmt) || rentAmt < 0) return { success: false, error: 'Tiền thuê phòng không hợp lệ' };
+    if (isNaN(serviceAmt) || serviceAmt < 0) return { success: false, error: 'Phí dịch vụ không hợp lệ' };
+
+    const start = new Date(draft.startDate);
+    if (isNaN(start.getTime())) {
+      return { success: false, error: 'Ngày bắt đầu hợp đồng không hợp lệ' };
+    }
+
+    // Lỗi xảy ra do draft.endDate có thể undefined, TS không cho phép new Date(undefined)
+    const endDateStr = (draft as any).endDate;
+    if (endDateStr) {
+      const end = new Date(endDateStr);
+      if (isNaN(end.getTime())) {
+        return { success: false, error: 'Ngày kết thúc không hợp lệ' };
+      }
+      if (end <= start) {
+        return { success: false, error: 'Ngày kết thúc phải diễn ra sau ngày bắt đầu hợp đồng' };
+      }
+    }
+
     // 4. Determine rental type
     const rooms = new Set(depositTicket.details.map(d => d.bed.roomId));
     const singleRoom = rooms.size === 1;
@@ -495,8 +538,22 @@ export async function createContractFromDeposit(
     revalidatePath('/dashboard/rooms');
 
     return { success: true, contractId: contract.id };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating contract:', error);
+
+    // Bắt lỗi Unique Constraint của Prisma để báo lỗi thân thiện thay vì sập app
+    if (error?.code === 'P2002') {
+      const target = error.meta?.target;
+      const targetStr = Array.isArray(target) ? target.join(',') : String(target || '');
+      
+      if (targetStr.includes('depositTicketId')) {
+        return { success: false, error: 'Phiếu cọc này đã được lập hợp đồng bởi một người khác.' };
+      }
+      if (targetStr.includes('code')) {
+        return { success: false, error: 'Mã hợp đồng bị trùng lặp do có người vừa tạo. Vui lòng thử lại.' };
+      }
+    }
+
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Unknown error occurred' 
@@ -591,8 +648,19 @@ export async function createReturnRoomTicketFromContract(
     revalidatePath('/dashboard/return-room-tickets');
 
     return { success: true, ticketId: ticket.id, ticketCode: ticket.code };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating return-room ticket:', error);
+    
+    // Xử lý lỗi Unique Constraint để báo cho user thay vì văng 500
+    if (error?.code === 'P2002') {
+      const target = error.meta?.target;
+      const targetStr = Array.isArray(target) ? target.join(',') : String(target || '');
+      
+      if (targetStr.includes('code')) {
+        return { success: false, error: 'Hệ thống đang xử lý phiếu trả phòng cho hợp đồng này hoặc mã phiếu trùng lặp. Vui lòng thử lại.' };
+      }
+    }
+
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred',

@@ -42,12 +42,13 @@ const navigationSections: NavigationSection[] = [
   },
   {
     title: "ĐĂNG KÝ & HỢP ĐỒNG",
-    roles: ["USER"], // Sale
+    roles: ["USER", "ACCOUNTANT", "ADMIN"], // Tất cả các quyền đều xem được đăng ký
     items: [
       {
         label: "Tiếp nhận mới",
         href: "/dashboard/registrations/new",
         icon: UserPlus,
+        roles: ["USER"], // Chỉ Sale mới cần tạo mới nhanh
       },
       {
         label: "Phiếu đăng ký",
@@ -59,6 +60,13 @@ const navigationSections: NavigationSection[] = [
         label: "Lịch xem phòng",
         href: "/dashboard/appointments",
         icon: Clock3,
+        roles: ["USER", "ADMIN"],
+      },
+      {
+        label: "Tạo phiếu cọc",
+        href: "/dashboard/deposits/new",
+        icon: UserPlus,
+        roles: ["USER"], // Sale tạo cọc
       },
       {
         label: "Quản lý hợp đồng",
@@ -68,26 +76,15 @@ const navigationSections: NavigationSection[] = [
     ],
   },
   {
-    title: "QUẢN LÝ ĐẶT CỌC",
-    roles: ["ACCOUNTANT"], // Kế toán
+    title: "KẾ TOÁN & THANH TOÁN",
+    roles: ["ACCOUNTANT", "ADMIN"], // Kế toán & Quản lý
     items: [
-      {
-        label: "Tạo phiếu cọc",
-        href: "/dashboard/deposits/new",
-        icon: UserPlus,
-      },
       {
         label: "Quản lý phiếu cọc",
         href: "/dashboard/deposits",
         icon: FileText,
         excludePaths: ["/dashboard/deposits/new"],
       },
-    ],
-  },
-  {
-    title: "KẾ TOÁN & THANH TOÁN",
-    roles: ["ACCOUNTANT"], // Kế toán
-    items: [
       {
         label: "Quản lý phiếu thanh toán",
         href: "/dashboard/payment-slips",
