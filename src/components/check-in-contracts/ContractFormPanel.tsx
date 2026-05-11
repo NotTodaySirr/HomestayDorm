@@ -36,13 +36,15 @@ export function ContractFormPanel({
   const expectedOccupantCount = Math.max(record.expectedOccupantCount, 1);
   const hasReachedOccupantLimit =
     draft.occupants.length >= expectedOccupantCount;
+  const hasValidOccupantCount =
+    draft.occupants.length > 0 && draft.occupants.length <= expectedOccupantCount;
   const canSubmit =
     draft.customerName.trim() &&
     draft.phone.trim() &&
     draft.roomCode.trim() &&
     draft.bedCodes.length > 0 &&
     draft.startDate &&
-    draft.occupants.length === expectedOccupantCount &&
+    hasValidOccupantCount &&
     draft.occupants.every(
       (occupant) =>
         occupant.fullName.trim() &&

@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ArrowLeft, Check, DoorOpen, Wrench, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Check, DoorOpen, Wrench } from "lucide-react";
 import { useMemo, useState } from "react";
 import type {
   ReturnRoomTicket,
@@ -86,14 +86,7 @@ export function RoomBedUpdateModal({
               {ticket.room.roomCode} · {modalData.rentalTypeLabel}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="rounded-[var(--radius-sm)] p-1 text-[var(--color-on-surface-secondary)] hover:bg-[var(--color-secondary)]"
-            aria-label="Đóng"
-          >
-            <X className="h-5 w-5" />
-          </button>
+
         </header>
 
         <div className="grid min-h-0 flex-1 grid-cols-1 gap-0 xl:grid-cols-[1fr_320px]">

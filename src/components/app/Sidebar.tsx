@@ -105,7 +105,6 @@ const navigationSections: NavigationSection[] = [
         label: "Quản lý phiếu trả phòng",
         href: "/dashboard/return-room-tickets",
         icon: FileText,
-        badge: 2,
       },
       {
         label: "Biên bản bàn giao",
@@ -227,8 +226,8 @@ export function Sidebar({
                 const Icon = item.icon;
                 const isActive = isActivePath(pathname, currentQueue, item);
                 const itemClasses = `flex min-h-9 w-full items-center gap-[9px] border-l-[3px] px-3.5 py-2 text-left text-[12px] transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--color-primary)] ${isActive
-                    ? "border-[var(--color-primary)] bg-[var(--color-primary-container)] font-medium text-[var(--color-primary)]"
-                    : "border-transparent text-[var(--color-on-surface-secondary)] hover:bg-[var(--color-primary-container)] hover:text-[var(--color-primary)]"
+                  ? "border-[var(--color-primary)] bg-[var(--color-primary-container)] font-medium text-[var(--color-primary)]"
+                  : "border-transparent text-[var(--color-on-surface-secondary)] hover:bg-[var(--color-primary-container)] hover:text-[var(--color-primary)]"
                   } ${item.disabled
                     ? "cursor-not-allowed opacity-55 hover:bg-transparent hover:text-[var(--color-on-surface-secondary)]"
                     : ""

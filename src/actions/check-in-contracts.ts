@@ -413,10 +413,10 @@ export async function createContractFromDeposit(
     }
 
     const expectedOccupantCount = depositTicket.registration.headcount || 1;
-    if (draft.occupants.length !== expectedOccupantCount) {
+    if (draft.occupants.length > expectedOccupantCount) {
       return {
         success: false,
-        error: `Số người ở phải đúng ${expectedOccupantCount} người theo phiếu đặt cọc`,
+        error: `Số người ở không được vượt quá ${expectedOccupantCount} người theo phiếu đặt cọc`,
       };
     }
 
@@ -525,14 +525,28 @@ export async function createContractFromDeposit(
         },
       });
 
-      // Update room occupancy (only if single room)
-      if (singleRoom && firstRoom) {
-        const newOccupancy = firstRoom.occupancy + depositTicket.details.length;
+      // Update room occupancy from actual bed states after DEPOSITED → OCCUPIED.
+      // Deposit confirmation already reserves these beds, so adding the same
+      // bed count again here can produce impossible values such as 8/4.
+      const affectedRoomIds = Array.from(rooms);
+      for (const roomId of affectedRoomIds) {
+        const roomBeds = await tx.bed.findMany({
+          where: { roomId },
+          select: { status: true },
+        });
+        const occupancy = roomBeds.filter((bed) =>
+          ['OCCUPIED', 'DEPOSITED'].includes(bed.status),
+        ).length;
+        const room = await tx.room.findUnique({
+          where: { id: roomId },
+          select: { capacity: true },
+        });
+
         await tx.room.update({
-          where: { id: firstRoom.id },
+          where: { id: roomId },
           data: {
-            occupancy: newOccupancy,
-            status: newOccupancy >= firstRoom.capacity ? 'FULL' : firstRoom.status,
+            occupancy,
+            status: deriveRoomDbStatus(occupancy, room?.capacity ?? 0, roomBeds),
           },
         });
       }

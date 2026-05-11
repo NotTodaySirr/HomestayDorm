@@ -160,7 +160,10 @@ export const RoomRegistrationView: React.FC<Props> = ({ initialRooms, initialReg
                   </td>
                 </tr>
               ) : filteredRooms.map((room) => {
-                const available = room.capacity - room.occupancy;
+                const occupiedOrReservedCount = room.beds.filter((bed) =>
+                  bed.status === 'OCCUPIED' || bed.status === 'DEPOSITED',
+                ).length;
+                const available = Math.max(0, room.capacity - occupiedOrReservedCount);
                 const statusLabel = available > 0 ? `Trống ${available}` : 'Đã đầy';
                 const isExpanded = expandedRoomId === room.id;
 
@@ -169,7 +172,7 @@ export const RoomRegistrationView: React.FC<Props> = ({ initialRooms, initialReg
                     {/* DÒNG HIỂN THỊ PHÒNG */}
                     <tr className="border-b border-border hover:bg-primary-container transition-colors group">
                       <td className="px-[12px] py-[8px] font-semibold text-[13px]">Phòng {room.name}</td>
-                      <td className="px-[12px] py-[8px] text-[13px]">{room.occupancy}/{room.capacity}</td>
+                      <td className="px-[12px] py-[8px] text-[13px]">{occupiedOrReservedCount}/{room.capacity}</td>
                       <td className="px-[12px] py-[8px] text-[13px] font-mono">{formatCurrency(room.price)}</td>
                       <td className="px-[12px] py-[8px]">
                         <span className={`px-[9px] py-[3px] text-[10px] font-semibold rounded-full uppercase tracking-wider inline-flex items-center justify-center ${

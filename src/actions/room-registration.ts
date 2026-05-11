@@ -41,7 +41,7 @@ export async function getAvailableRooms() {
   const branch = await getBranch();
   if (!branch) return [];
 
-  return prisma.room.findMany({
+  const rooms = await prisma.room.findMany({
     where: { 
       branchId: branch.id,
     },
@@ -51,6 +51,22 @@ export async function getAvailableRooms() {
       }
     },
     orderBy: { name: 'asc' }
+  });
+
+  return rooms.map((room) => {
+    const occupancy = room.beds.filter((bed) =>
+      ['OCCUPIED', 'DEPOSITED'].includes(bed.status),
+    ).length;
+
+    return {
+      ...room,
+      occupancy,
+      status: room.beds.some((bed) => bed.status === 'MAINTENANCE')
+        ? 'MAINTENANCE'
+        : occupancy >= room.capacity
+          ? 'FULL'
+          : 'AVAILABLE',
+    };
   });
 }
 

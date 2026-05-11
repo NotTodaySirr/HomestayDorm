@@ -30,8 +30,8 @@ export function ReturnRoomTicketsWorkspace({
     isSubmittingReconciliation,
     setQueue,
     setSearch,
-    setSort,
-    setAdvancedFilters,
+    // setSort, // No longer used in Toolbar
+    // setAdvancedFilters, // No longer used in Toolbar
     selectTicket,
     showDetailPanel,
     showReconciliationPanel,
@@ -51,21 +51,8 @@ export function ReturnRoomTicketsWorkspace({
         </h1>
 
         <TicketToolbar
-          queue={filters.queue}
           search={filters.search}
-          sort={filters.sort}
-          advancedFilters={{
-            ticketCode: filters.ticketCode,
-            tenantName: filters.tenantName,
-            contractCode: filters.contractCode,
-            roomOrBed: filters.roomOrBed,
-            status: filters.status,
-            fromDate: filters.fromDate,
-            toDate: filters.toDate,
-          }}
           onSearchChange={setSearch}
-          onSortChange={setSort}
-          onAdvancedFiltersChange={setAdvancedFilters}
         />
       </header>
 

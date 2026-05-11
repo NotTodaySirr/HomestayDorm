@@ -61,11 +61,31 @@ function monthDiff(startDate: Date, endDate?: Date | null) {
   return Math.max(1, months || 1);
 }
 
-function getRefundPolicyFromRate(rate?: number | null): RefundPolicyCode {
+function isContractExpiredByStayDate(contractEndDate: Date | null | undefined, stayEndDate: Date) {
+  return Boolean(contractEndDate && stayEndDate >= contractEndDate);
+}
+
+function getRefundPolicyFromStayDuration(
+  stayDurationMonths: number,
+  contractEndDate?: Date | null,
+  stayEndDate: Date = new Date(),
+): RefundPolicyCode {
+  if (isContractExpiredByStayDate(contractEndDate, stayEndDate)) {
+    return 'expiredContract';
+  }
+
+  return stayDurationMonths < 6 ? 'underSixMonths' : 'overSixMonths';
+}
+
+function getRefundPolicyFromRate(
+  rate?: number | null,
+  fallbackPolicy: RefundPolicyCode = 'overSixMonths',
+): RefundPolicyCode {
   if (rate === 100) return 'expiredContract';
   if (rate === 50) return 'underSixMonths';
   if (rate === 70) return 'overSixMonths';
-  return 'overSixMonths';
+  if (rate === 80) return 'unsignedContract';
+  return fallbackPolicy;
 }
 
 function mapPaymentSlipStatus(ticket: any, payment?: any): PaymentSlipStatus {
@@ -155,7 +175,13 @@ function mapPaymentSlip(ticket: any): PaymentSlip {
   const firstBedDetail = contract.bedDetails?.[0];
   const room = firstBedDetail?.bed?.room;
   const bedCode = contract.bedDetails?.map((detail: any) => detail.bed.position).join(', ') || 'N/A';
-  const stayDurationMonths = monthDiff(contract.startDate, ticket.returnRoomTicket.actualReturnDate);
+  const stayEndDate = ticket.returnRoomTicket.actualReturnDate ?? new Date();
+  const stayDurationMonths = monthDiff(contract.startDate, stayEndDate);
+  const defaultRefundPolicy = getRefundPolicyFromStayDuration(
+    stayDurationMonths,
+    contract.endDate,
+    stayEndDate,
+  );
   const managerDetails = ticket.details?.filter((detail: any) => detail.source === 'manager') ?? [];
   const accountingDetails = ticket.details?.filter((detail: any) => detail.source === 'accounting') ?? [];
   const managerCompensationFee = managerDetails.reduce((sum: number, detail: any) => sum + detail.amount, 0);
@@ -163,6 +189,7 @@ function mapPaymentSlip(ticket: any): PaymentSlip {
   const adjustmentDetail = findAccountingDetail(accountingDetails, 'dieu chinh');
   const latestPayment = ticket.payments?.[0];
   const finalAmount = ticket.finalAmount ?? 0;
+  const refundPolicy = getRefundPolicyFromRate(ticket.refundRate, defaultRefundPolicy);
 
   return {
     id: ticket.id,
@@ -188,7 +215,7 @@ function mapPaymentSlip(ticket: any): PaymentSlip {
       note: ticket.managerNotes || '',
     },
     calculation: {
-      refundPolicy: getRefundPolicyFromRate(ticket.refundRate),
+      refundPolicy,
       unpaidRent: findAccountingDetail(accountingDetails, 'thue')?.amount ?? 0,
       electricityFee: findAccountingDetail(accountingDetails, 'dien')?.amount ?? 0,
       waterFee: findAccountingDetail(accountingDetails, 'nuoc')?.amount ?? 0,
