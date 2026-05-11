@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Check, Save, Send, Wrench } from "lucide-react";
+import { ArrowLeft, Check, Send, Wrench } from "lucide-react";
 import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
 import type { ReturnRoomTicket } from "@/lib/return-room-tickets/types";
@@ -247,7 +247,7 @@ export function ReconciliationFormPanel({
 
         </div>
         <div className="flex shrink-0 flex-wrap justify-end gap-2 p-3">
-          <ActionButton icon={Save} disabled={isSubmitting}>Lưu nháp</ActionButton>
+
           <ActionButton icon={Send} type="submit" variant="primary" disabled={isSubmitting}>
             Hoàn tất kiểm tra & chuyển kế toán
           </ActionButton>

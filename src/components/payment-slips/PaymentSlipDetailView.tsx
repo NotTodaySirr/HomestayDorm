@@ -320,7 +320,7 @@ export function PaymentSlipDetailView({ slip }: PaymentSlipDetailViewProps) {
                 >
                   Xác nhận kết quả tính toán
                 </ActionButton>
-                <ActionButton icon={Save} variant="secondary">Lưu nháp</ActionButton>
+
               </>
             )}
 
@@ -333,7 +333,7 @@ export function PaymentSlipDetailView({ slip }: PaymentSlipDetailViewProps) {
                 >
                   Chỉnh sửa kết quả
                 </ActionButton>
-                <ActionButton icon={Save} variant="secondary">Lưu nháp</ActionButton>
+
               </>
             )}
 
