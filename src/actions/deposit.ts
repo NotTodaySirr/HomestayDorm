@@ -39,6 +39,43 @@ async function getBranch() {
 
 // ===== QUERIES =====
 
+function deriveRoomDbStatusFromBeds(beds: Array<{ status: string }>) {
+  const maintenanceCount = beds.filter((bed) => bed.status === 'MAINTENANCE').length;
+  const maintenanceRatio = beds.length > 0 ? maintenanceCount / beds.length : 0;
+
+  if (maintenanceRatio >= 0.75) {
+    return 'MAINTENANCE';
+  }
+
+  const usableCapacity = Math.max(0, beds.length - maintenanceCount);
+  const occupancy = beds.filter((bed) => ['OCCUPIED', 'DEPOSITED'].includes(bed.status)).length;
+
+  if (usableCapacity > 0 && occupancy >= usableCapacity) {
+    return 'FULL';
+  }
+
+  return 'AVAILABLE';
+}
+
+async function recalculateRoomStatus(
+  tx: any,
+  roomId: string,
+) {
+  const roomBeds: Array<{ status: string }> = await tx.bed.findMany({
+    where: { roomId },
+    select: { status: true },
+  });
+  const occupancy = roomBeds.filter((bed) => ['OCCUPIED', 'DEPOSITED'].includes(bed.status)).length;
+
+  await tx.room.update({
+    where: { id: roomId },
+    data: {
+      occupancy,
+      status: deriveRoomDbStatusFromBeds(roomBeds),
+    },
+  });
+}
+
 export async function getAvailableRoomsWithBeds() {
   const branch = await getBranch();
   if (!branch) return [];
@@ -46,7 +83,7 @@ export async function getAvailableRoomsWithBeds() {
   return prisma.room.findMany({
     where: {
       branchId: branch.id,
-      status: { not: 'MAINTENANCE' },
+      beds: { some: { status: 'AVAILABLE' } },
     },
     include: {
       beds: {
@@ -281,24 +318,10 @@ export async function confirmDeposit(depositId: string) {
       },
     });
 
-    const roomMap = new Map<string, number>();
-    for (const detail of deposit.details) {
-      const roomId = detail.bed.roomId;
-      roomMap.set(roomId, (roomMap.get(roomId) || 0) + 1);
-    }
+    const affectedRoomIds = new Set(deposit.details.map((detail) => detail.bed.roomId));
 
-    for (const [roomId, bedCount] of roomMap) {
-      const room = await tx.room.findUnique({ where: { id: roomId } });
-      if (room) {
-        const newOccupancy = room.occupancy + bedCount;
-        await tx.room.update({
-          where: { id: roomId },
-          data: {
-            occupancy: newOccupancy,
-            status: newOccupancy >= room.capacity ? 'FULL' : 'AVAILABLE',
-          },
-        });
-      }
+    for (const roomId of affectedRoomIds) {
+      await recalculateRoomStatus(tx, roomId);
     }
   });
 
@@ -322,7 +345,6 @@ export async function cancelDeposit(depositId: string, formData: FormData) {
     throw new Error('Phiếu cọc đã bị hủy hoặc hết hạn');
   }
 
-  const wasConfirmed = deposit.status === 'CONFIRMED';
 
   await prisma.$transaction(async (tx) => {
     await tx.depositTicket.update({
@@ -338,27 +360,11 @@ export async function cancelDeposit(depositId: string, formData: FormData) {
       });
     }
 
-    if (wasConfirmed) {
-      const roomMap = new Map<string, number>();
-      for (const detail of deposit.details) {
-        const roomId = detail.bed.roomId;
-        roomMap.set(roomId, (roomMap.get(roomId) || 0) + 1);
-      }
+      const affectedRoomIds = new Set(deposit.details.map((detail) => detail.bed.roomId));
 
-      for (const [roomId, bedCount] of roomMap) {
-        const room = await tx.room.findUnique({ where: { id: roomId } });
-        if (room) {
-          const newOccupancy = Math.max(0, room.occupancy - bedCount);
-          await tx.room.update({
-            where: { id: roomId },
-            data: {
-              occupancy: newOccupancy,
-              status: newOccupancy < room.capacity ? 'AVAILABLE' : 'FULL',
-            },
-          });
-        }
+      for (const roomId of affectedRoomIds) {
+        await recalculateRoomStatus(tx, roomId);
       }
-    }
   });
 
   revalidatePath('/dashboard/deposits');

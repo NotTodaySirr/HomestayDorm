@@ -324,6 +324,7 @@ export const CreateDepositView: React.FC<Props> = ({ rooms, registrations }) => 
               <div className="grid grid-cols-1 gap-3 2xl:grid-cols-2">
                 {visibleRooms.map((room) => {
                   const availableBeds = room.beds.filter((bed) => bed.status === "AVAILABLE");
+                  const maintenanceBeds = room.beds.filter((bed) => bed.status === "MAINTENANCE");
                   const selectedChoice = selectedBedChoiceByRoom[room.id] ?? "";
                   const isConsulted = selectedReg?.consultingRooms?.some((consultingRoom) => consultingRoom.id === room.id);
                   const selectedInRoomCount = room.beds.filter((bed) => selectedBedIds.has(bed.id)).length;
@@ -359,8 +360,8 @@ export const CreateDepositView: React.FC<Props> = ({ rooms, registrations }) => 
                             {roomTypeLabels[room.roomType] ?? room.roomType} - {genderLabels[room.gender] ?? room.gender}
                           </p>
                           <div className="mt-3 grid grid-cols-2 gap-2 text-[12px]">
-                            <InfoMini label="Giá 1 giường" value={formatCurrency(room.price)} />
-                            <InfoMini label="Giường trống" value={`${availableBeds.length}/${room.capacity}`} />
+                            <InfoMini label="Giường trống" value={`${availableBeds.length}/${room.beds.length}`} />
+                            <InfoMini label="Bảo trì" value={`${maintenanceBeds.length}/${room.beds.length}`} />
                           </div>
                           {room.amenities ? (
                             <p className="mt-2 text-[11px] text-on-surface-secondary">{room.amenities}</p>
@@ -383,11 +384,28 @@ export const CreateDepositView: React.FC<Props> = ({ rooms, registrations }) => 
                               Thuê nguyên phòng - {formatCurrency(roomDeposit)}
                             </option>
                           ) : null}
-                          {availableBeds.map((bed) => (
-                            <option key={bed.id} value={bed.id} disabled={selectedBedIds.has(bed.id)}>
-                              {bed.position} - {formatCurrency(bed.price)} / tháng
-                            </option>
-                          ))}
+                          {room.beds.map((bed) => {
+                            const isAvailable = bed.status === "AVAILABLE";
+                            const statusLabel = bed.status === "MAINTENANCE"
+                              ? "Bảo trì"
+                              : bed.status === "DEPOSITED"
+                                ? "Đã cọc"
+                                : bed.status === "OCCUPIED"
+                                  ? "Đang ở"
+                                  : "Không khả dụng";
+
+                            return (
+                              <option
+                                key={bed.id}
+                                value={bed.id}
+                                disabled={!isAvailable || selectedBedIds.has(bed.id)}
+                              >
+                                {isAvailable
+                                  ? `${bed.position} - ${formatCurrency(bed.price)} / tháng`
+                                  : `${bed.position} - ${statusLabel}`}
+                              </option>
+                            );
+                          })}
                         </select>
 
                         <button

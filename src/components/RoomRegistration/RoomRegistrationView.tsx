@@ -89,7 +89,7 @@ export const RoomRegistrationView: React.FC<Props> = ({ initialRooms, initialReg
   };
 
   const filteredRooms = initialRooms.filter((room) => {
-    const available = room.capacity - room.occupancy;
+    const available = room.beds.filter((bed) => bed.status === 'AVAILABLE').length;
     if (formData.headcount && available < parseInt(formData.headcount)) return false;
     if (formData.maxPrice && room.price > parseInt(formData.maxPrice)) return false;
     if (formData.minPrice && room.price < parseInt(formData.minPrice)) return false;
@@ -163,8 +163,21 @@ export const RoomRegistrationView: React.FC<Props> = ({ initialRooms, initialReg
                 const occupiedOrReservedCount = room.beds.filter((bed) =>
                   bed.status === 'OCCUPIED' || bed.status === 'DEPOSITED',
                 ).length;
-                const available = Math.max(0, room.capacity - occupiedOrReservedCount);
-                const statusLabel = available > 0 ? `Trống ${available}` : 'Đã đầy';
+                const maintenanceCount = room.beds.filter((bed) => bed.status === 'MAINTENANCE').length;
+                const available = room.beds.filter((bed) => bed.status === 'AVAILABLE').length;
+                const isRoomMaintenance = room.status === 'MAINTENANCE';
+                const statusLabel = isRoomMaintenance
+                  ? `Bảo trì ${maintenanceCount}/${room.beds.length}`
+                  : available > 0
+                    ? maintenanceCount > 0
+                      ? `Trống ${available} · Bảo trì ${maintenanceCount}`
+                      : `Trống ${available}`
+                    : 'Đã đầy';
+                const statusClass = isRoomMaintenance
+                  ? 'bg-warning-container text-warning'
+                  : available <= 0
+                    ? 'bg-error-container text-error'
+                    : 'bg-success-container text-success';
                 const isExpanded = expandedRoomId === room.id;
 
                 return (
@@ -175,9 +188,7 @@ export const RoomRegistrationView: React.FC<Props> = ({ initialRooms, initialReg
                       <td className="px-[12px] py-[8px] text-[13px]">{occupiedOrReservedCount}/{room.capacity}</td>
                       <td className="px-[12px] py-[8px] text-[13px] font-mono">{formatCurrency(room.price)}</td>
                       <td className="px-[12px] py-[8px]">
-                        <span className={`px-[9px] py-[3px] text-[10px] font-semibold rounded-full uppercase tracking-wider inline-flex items-center justify-center ${
-                          available <= 0 ? 'bg-error-container text-error' : 'bg-success-container text-success'
-                        }`}>
+                        <span className={`px-[9px] py-[3px] text-[10px] font-semibold rounded-full uppercase tracking-wider inline-flex items-center justify-center ${statusClass}`}>
                           {statusLabel}
                         </span>
                       </td>
@@ -213,16 +224,31 @@ export const RoomRegistrationView: React.FC<Props> = ({ initialRooms, initialReg
                             {room.beds.map(bed => {
                               const isDeposited = bed.status === 'DEPOSITED';
                               const isOccupied = bed.status === 'OCCUPIED';
+                              const isMaintenance = bed.status === 'MAINTENANCE';
+                              const bedStatusLabel = isDeposited
+                                ? 'Đã cọc (Khóa)'
+                                : isOccupied
+                                  ? 'Đang ở'
+                                  : isMaintenance
+                                    ? 'Bảo trì'
+                                    : 'Trống';
+                              const bedStatusClass = isDeposited
+                                ? 'text-warning'
+                                : isOccupied
+                                  ? 'text-error'
+                                  : isMaintenance
+                                    ? 'text-warning'
+                                    : 'text-success';
                               
                               return (
                                 <div key={bed.id} className={`p-[10px] border rounded-[6px] bg-surface flex flex-col justify-between ${
-                                  isDeposited ? 'border-warning' : isOccupied ? 'border-error opacity-70' : 'border-border'
+                                  isDeposited ? 'border-warning' : isOccupied ? 'border-error opacity-70' : isMaintenance ? 'border-warning bg-warning-container/20' : 'border-border'
                                 }`}>
                                   <div>
                                     <div className="font-semibold text-[13px]">{bed.position}</div>
                                     <div className="text-[11px] mt-[4px]">
-                                      Trạng thái: <span className={`font-bold ${isDeposited ? 'text-warning' : isOccupied ? 'text-error' : 'text-success'}`}>
-                                        {isDeposited ? 'Đã cọc (Khóa)' : isOccupied ? 'Đang ở' : 'Trống'}
+                                      Trạng thái: <span className={`font-bold ${bedStatusClass}`}>
+                                        {bedStatusLabel}
                                       </span>
                                     </div>
                                   </div>

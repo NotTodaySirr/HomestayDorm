@@ -37,6 +37,24 @@ async function getBranch() {
   });
 }
 
+function deriveRoomDbStatusFromBeds(beds: Array<{ status: string }>) {
+  const maintenanceCount = beds.filter((bed) => bed.status === 'MAINTENANCE').length;
+  const maintenanceRatio = beds.length > 0 ? maintenanceCount / beds.length : 0;
+
+  if (maintenanceRatio >= 0.75) {
+    return 'MAINTENANCE';
+  }
+
+  const usableCapacity = Math.max(0, beds.length - maintenanceCount);
+  const occupancy = beds.filter((bed) => ['OCCUPIED', 'DEPOSITED'].includes(bed.status)).length;
+
+  if (usableCapacity > 0 && occupancy >= usableCapacity) {
+    return 'FULL';
+  }
+
+  return 'AVAILABLE';
+}
+
 export async function getAvailableRooms() {
   const branch = await getBranch();
   if (!branch) return [];
@@ -61,11 +79,7 @@ export async function getAvailableRooms() {
     return {
       ...room,
       occupancy,
-      status: room.beds.some((bed) => bed.status === 'MAINTENANCE')
-        ? 'MAINTENANCE'
-        : occupancy >= room.capacity
-          ? 'FULL'
-          : 'AVAILABLE',
+      status: deriveRoomDbStatusFromBeds(room.beds),
     };
   });
 }
@@ -371,9 +385,27 @@ export async function openSingleBed(bedId: string) {
     throw new Error(`Không thể mở giường đang ở trạng thái "${bed.status}". Chỉ cho phép mở giường trống hoặc đã đặt cọc.`);
   }
 
-  await prisma.bed.update({
-    where: { id: bedId },
-    data: { status: 'OCCUPIED' }
+  await prisma.$transaction(async (tx) => {
+    await tx.bed.update({
+      where: { id: bedId },
+      data: { status: 'OCCUPIED' }
+    });
+
+    const roomBeds = await tx.bed.findMany({
+      where: { roomId: bed.roomId },
+      select: { status: true },
+    });
+    const occupancy = roomBeds.filter((roomBed) =>
+      ['OCCUPIED', 'DEPOSITED'].includes(roomBed.status),
+    ).length;
+
+    await tx.room.update({
+      where: { id: bed.roomId },
+      data: {
+        occupancy,
+        status: deriveRoomDbStatusFromBeds(roomBeds),
+      },
+    });
   });
 
   revalidatePath('/dashboard/rooms');

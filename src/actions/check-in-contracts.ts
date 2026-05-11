@@ -1165,11 +1165,16 @@ function deriveRoomDbStatus(
   capacity: number,
   beds: Array<{ status: string }>,
 ) {
-  if (beds.some((bed) => bed.status === 'MAINTENANCE')) {
+  const maintenanceCount = beds.filter((bed) => bed.status === 'MAINTENANCE').length;
+  const maintenanceRatio = beds.length > 0 ? maintenanceCount / beds.length : 0;
+
+  if (maintenanceRatio >= 0.75) {
     return 'MAINTENANCE';
   }
 
-  if (capacity > 0 && occupancy >= capacity) {
+  const usableCapacity = Math.max(0, beds.length - maintenanceCount || capacity);
+
+  if (usableCapacity > 0 && occupancy >= usableCapacity) {
     return 'FULL';
   }
 
