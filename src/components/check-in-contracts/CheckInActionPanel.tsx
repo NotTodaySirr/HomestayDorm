@@ -146,7 +146,7 @@ export function CheckInActionPanel({
               <span>Họ tên</span>
               <span>CCCD</span>
               <span>Giới tính</span>
-              <span>Ngày sinh/Quốc tịch</span>
+              <span>Ngày sinh</span>
             </div>
             {record.occupants.map((occupant) => (
               <div
@@ -166,8 +166,7 @@ export function CheckInActionPanel({
                 </span>
                 <span>{genderLabel[occupant.gender] ?? "Chưa rõ"}</span>
                 <span className="min-w-0 truncate">
-                  {occupant.dateOfBirth ? formatDate(occupant.dateOfBirth) : "Chưa có"} ·{" "}
-                  {occupant.nationality || "Chưa có"}
+                  {occupant.dateOfBirth ? formatDate(occupant.dateOfBirth) : "Chưa có"}
                 </span>
               </div>
             ))}

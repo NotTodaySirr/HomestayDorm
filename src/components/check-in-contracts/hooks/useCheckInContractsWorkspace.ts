@@ -23,7 +23,7 @@ export function useCheckInContractsWorkspace(
 ) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   const [records, setRecords] = useState(initialRecords);
   const [filters, setFilters] =
     useState<CheckInContractFilterState>(defaultFilterState);
@@ -81,7 +81,7 @@ export function useCheckInContractsWorkspace(
     setScreenMode("detail");
     setDraft(record ? createContractDraftFromRecord(record) : null);
     setNotice(null);
-    
+
     // Update URL
     router.push(`?id=${recordId}`, { scroll: false });
   }
@@ -89,14 +89,14 @@ export function useCheckInContractsWorkspace(
   function showList() {
     setScreenMode("list");
     setNotice(null);
-    
+
     // Clear URL parameter
     router.push('?', { scroll: false });
   }
 
   function showDetail() {
     setScreenMode("detail");
-    
+
     // Ensure URL has the selected record ID
     if (selectedRecordId) {
       router.push(`?id=${selectedRecordId}`, { scroll: false });
@@ -131,7 +131,7 @@ export function useCheckInContractsWorkspace(
 
     // Call the server action to create the contract
     const { createContractFromDeposit } = await import('@/actions/check-in-contracts');
-    
+
     // Transform draft to match server action input
     const result = await createContractFromDeposit(selectedRecord.id, {
       startDate: new Date(draft.startDate),
@@ -149,7 +149,7 @@ export function useCheckInContractsWorkspace(
         identityNumber: occupant.identityNumber,
         gender: occupant.gender.toUpperCase() as 'MALE' | 'FEMALE' | 'OTHER',
         dateOfBirth: new Date(occupant.dateOfBirth),
-        nationality: occupant.nationality || 'Việt Nam',
+        nationality: occupant.nationality || '',
         isRepresentative: occupant.isRepresentative,
       })),
     });
@@ -160,17 +160,17 @@ export function useCheckInContractsWorkspace(
         currentRecords.map((record) =>
           record.id === selectedRecord.id
             ? {
-                ...record,
-                status: 'contractCreated' as const,
-                contract: {
-                  id: result.contractId ?? selectedRecord.contract?.id ?? "",
-                  code: `HD${String(currentRecords.length + 1).padStart(3, '0')}`,
-                  startDate: draft.startDate,
-                  paymentCycle: draft.paymentCycle,
-                  rentalType: draft.rentalType,
-                  status: "active" as const,
-                },
-              }
+              ...record,
+              status: 'contractCreated' as const,
+              contract: {
+                id: result.contractId ?? selectedRecord.contract?.id ?? "",
+                code: `HD${String(currentRecords.length + 1).padStart(3, '0')}`,
+                startDate: draft.startDate,
+                paymentCycle: draft.paymentCycle,
+                rentalType: draft.rentalType,
+                status: "active" as const,
+              },
+            }
             : record,
         ),
       );
@@ -217,16 +217,16 @@ export function useCheckInContractsWorkspace(
       currentRecords.map((record) =>
         record.id === selectedRecord.id && record.contract
           ? {
-              ...record,
-              contract: {
-                ...record.contract,
-                returnTicket: {
-                  id: result.ticketId ?? "",
-                  code: result.ticketCode ?? "PTP",
-                  status: "PENDING_MANAGER_REVIEW",
-                },
+            ...record,
+            contract: {
+              ...record.contract,
+              returnTicket: {
+                id: result.ticketId ?? "",
+                code: result.ticketCode ?? "PTP",
+                status: "PENDING_MANAGER_REVIEW",
               },
-            }
+            },
+          }
           : record,
       ),
     );
