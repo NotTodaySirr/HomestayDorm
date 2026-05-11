@@ -44,8 +44,8 @@ export function ReturnRoomTicketsWorkspace({
   } = useReturnRoomTicketsWorkspace(initialTickets);
 
   return (
-    <div className="relative flex w-full flex-col gap-3 sm:gap-4 xl:h-full">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="relative flex h-[calc(100dvh-96px)] min-h-0 w-full flex-col gap-3 overflow-hidden sm:h-[calc(100dvh-104px)] sm:gap-4">
+      <header className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-[20px] font-bold tracking-tight text-[var(--color-on-surface)]">
           Quản lý phiếu trả phòng
         </h1>
@@ -58,7 +58,7 @@ export function ReturnRoomTicketsWorkspace({
 
       {notice ? <Toast message={notice} variant={noticeVariant} /> : null}
 
-      <section className="grid flex-1 grid-cols-1 gap-3 xl:min-h-0 xl:grid-cols-[1.3fr_1fr]">
+      <section className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <TicketListPanel
           tickets={visibleTickets}
           activeQueue={filters.queue}

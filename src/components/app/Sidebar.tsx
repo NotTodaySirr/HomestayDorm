@@ -118,22 +118,6 @@ const navigationSections: NavigationSection[] = [
       },
     ],
   },
-  {
-    title: "BÁO CÁO",
-    roles: ["ADMIN", "ACCOUNTANT"], // Quản lý & Kế toán
-    items: [
-      {
-        label: "Doanh thu",
-        href: "/dashboard/reports/revenue",
-        icon: ChartNoAxesColumnIncreasing,
-      },
-      {
-        label: "Lịch sử giao dịch",
-        href: "/dashboard/reports/transactions",
-        icon: Clock3,
-      },
-    ],
-  },
 ];
 
 function buildHref(item: NavigationItem) {
